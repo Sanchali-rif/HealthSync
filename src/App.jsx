@@ -1,9 +1,18 @@
-import React from 'react';
+import React, { useState } from 'react';
 import PatientIntake from './pages/PatientIntake';
+import LiveDashboard from './pages/LiveDashboard';
 
 function App() {
+  const [currentPage, setCurrentPage] = useState('patient-intake');
+
   return (
-    <PatientIntake />
+    <>
+      {currentPage === 'patient-intake' ? (
+        <PatientIntake setCurrentPage={setCurrentPage} />
+      ) : (
+        <LiveDashboard setCurrentPage={setCurrentPage} />
+      )}
+    </>
   );
 }
 

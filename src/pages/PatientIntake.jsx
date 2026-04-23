@@ -1,6 +1,6 @@
 import React from 'react';
 
-export default function PatientIntake() {
+export default function PatientIntake({ setCurrentPage }) {
   return (
     <div className="bg-background text-on-background font-body-sm min-h-screen">
       {/* TopNavBar */}
@@ -10,10 +10,21 @@ export default function PatientIntake() {
           <span className="text-lg font-black tracking-tight text-slate-900 dark:text-slate-50 uppercase">HealthSync</span>
         </div>
         <nav className="flex space-x-6 h-full items-end">
-          <a className="text-slate-900 dark:text-slate-50 font-bold border-b-2 border-slate-900 dark:border-slate-50 pb-[17px] hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer active:opacity-70" href="#">
+          <a 
+            className="text-slate-900 dark:text-slate-50 font-bold border-b-2 border-slate-900 dark:border-slate-50 pb-[17px] hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer active:opacity-70" 
+            onClick={(e) => e.preventDefault()}
+            href="#"
+          >
             Patient Intake
           </a>
-          <a className="text-slate-500 dark:text-slate-400 font-medium pb-[17px] hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer active:opacity-70" href="#">
+          <a 
+            className="text-slate-500 dark:text-slate-400 font-medium pb-[17px] hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer active:opacity-70" 
+            onClick={(e) => {
+              e.preventDefault();
+              if (setCurrentPage) setCurrentPage('live-dashboard');
+            }}
+            href="#"
+          >
             Live Dashboard
           </a>
         </nav>
@@ -36,11 +47,22 @@ export default function PatientIntake() {
 
       {/* SideNavBar (Mobile) */}
       <nav className="md:hidden fixed bottom-0 w-full bg-white border-t border-slate-200 z-50 flex justify-around py-3">
-        <a className="flex flex-col items-center text-primary" href="#">
+        <a 
+          className="flex flex-col items-center text-primary" 
+          onClick={(e) => e.preventDefault()}
+          href="#"
+        >
           <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>assignment</span>
           <span className="text-[10px] font-semibold mt-1">Intake</span>
         </a>
-        <a className="flex flex-col items-center text-slate-500" href="#">
+        <a 
+          className="flex flex-col items-center text-slate-500" 
+          onClick={(e) => {
+            e.preventDefault();
+            if (setCurrentPage) setCurrentPage('live-dashboard');
+          }}
+          href="#"
+        >
           <span className="material-symbols-outlined">dashboard</span>
           <span className="text-[10px] font-medium mt-1">Dashboard</span>
         </a>
