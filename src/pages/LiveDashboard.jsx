@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 
 export default function LiveDashboard({ setCurrentPage }) {
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+
   return (
     <div className="bg-surface text-on-surface min-h-screen flex flex-col font-body-sm">
       {/* TopNavBar */}
@@ -114,7 +116,10 @@ export default function LiveDashboard({ setCurrentPage }) {
                     <td className="p-3 text-on-surface-variant">Resuscitation</td>
                     <td className="p-3 text-on-surface-variant font-medium text-status-critical-text">2 min</td>
                     <td className="p-3 text-right">
-                      <button className="text-primary hover:text-secondary font-medium transition-colors p-1">
+                      <button 
+                        className="text-primary hover:text-secondary font-medium transition-colors p-1 bg-surface-container rounded hover:bg-surface-dim" 
+                        onClick={() => setIsDrawerOpen(true)}
+                      >
                         <span className="material-symbols-outlined text-[20px]" data-icon="chevron_right">chevron_right</span>
                       </button>
                     </td>
@@ -132,7 +137,10 @@ export default function LiveDashboard({ setCurrentPage }) {
                     <td className="p-3 text-on-surface-variant">Resuscitation</td>
                     <td className="p-3 text-on-surface-variant font-medium text-status-critical-text">5 min</td>
                     <td className="p-3 text-right">
-                      <button className="text-primary hover:text-secondary font-medium transition-colors p-1">
+                      <button 
+                        className="text-primary hover:text-secondary font-medium transition-colors p-1 bg-surface-container rounded hover:bg-surface-dim" 
+                        onClick={() => setIsDrawerOpen(true)}
+                      >
                         <span className="material-symbols-outlined text-[20px]" data-icon="chevron_right">chevron_right</span>
                       </button>
                     </td>
@@ -150,7 +158,10 @@ export default function LiveDashboard({ setCurrentPage }) {
                     <td className="p-3 text-on-surface-variant">Emergency</td>
                     <td className="p-3 text-on-surface-variant font-medium">12 min</td>
                     <td className="p-3 text-right">
-                      <button className="text-primary hover:text-secondary font-medium transition-colors p-1">
+                      <button 
+                        className="text-primary hover:text-secondary font-medium transition-colors p-1 bg-surface-container rounded hover:bg-surface-dim" 
+                        onClick={() => setIsDrawerOpen(true)}
+                      >
                         <span className="material-symbols-outlined text-[20px]" data-icon="chevron_right">chevron_right</span>
                       </button>
                     </td>
@@ -168,7 +179,10 @@ export default function LiveDashboard({ setCurrentPage }) {
                     <td className="p-3 text-on-surface-variant">Orthopaedics</td>
                     <td className="p-3 text-on-surface-variant font-medium">28 min</td>
                     <td className="p-3 text-right">
-                      <button className="text-primary hover:text-secondary font-medium transition-colors p-1">
+                      <button 
+                        className="text-primary hover:text-secondary font-medium transition-colors p-1 bg-surface-container rounded hover:bg-surface-dim" 
+                        onClick={() => setIsDrawerOpen(true)}
+                      >
                         <span className="material-symbols-outlined text-[20px]" data-icon="chevron_right">chevron_right</span>
                       </button>
                     </td>
@@ -186,7 +200,10 @@ export default function LiveDashboard({ setCurrentPage }) {
                     <td className="p-3 text-on-surface-variant">General OPD</td>
                     <td className="p-3 text-on-surface-variant font-medium">45 min</td>
                     <td className="p-3 text-right">
-                      <button className="text-primary hover:text-secondary font-medium transition-colors p-1">
+                      <button 
+                        className="text-primary hover:text-secondary font-medium transition-colors p-1 bg-surface-container rounded hover:bg-surface-dim" 
+                        onClick={() => setIsDrawerOpen(true)}
+                      >
                         <span className="material-symbols-outlined text-[20px]" data-icon="chevron_right">chevron_right</span>
                       </button>
                     </td>
@@ -197,6 +214,83 @@ export default function LiveDashboard({ setCurrentPage }) {
           </div>
         </div>
       </main>
+
+      {/* Drawer Overlay */}
+      {isDrawerOpen && (
+        <div 
+          className="fixed inset-0 bg-slate-900/50 dark:bg-slate-900/80 z-[100] transition-opacity"
+          onClick={() => setIsDrawerOpen(false)}
+        />
+      )}
+
+      {/* Drawer Content */}
+      <div 
+        className={`fixed inset-y-0 right-0 w-full md:w-[400px] bg-surface border-l border-border-light shadow-xl z-[110] transform transition-transform duration-300 ease-in-out ${
+          isDrawerOpen ? 'translate-x-0' : 'translate-x-full'
+        }`}
+      >
+        <div className="h-full flex flex-col">
+          <div className="p-4 border-b border-border-light flex justify-between items-center bg-surface-container">
+            <h2 className="text-lg font-semibold text-on-surface">Patient Details</h2>
+            <button 
+              className="p-1 rounded hover:bg-surface-dim text-on-surface-variant transition-colors cursor-pointer"
+              onClick={() => setIsDrawerOpen(false)}
+            >
+              <span className="material-symbols-outlined">close</span>
+            </button>
+          </div>
+          
+          <div className="p-4 flex-1 overflow-y-auto space-y-6">
+            <div>
+              <h3 className="text-sm font-semibold text-on-surface mb-2">Chief Complaint</h3>
+              <p className="text-sm text-on-surface-variant">
+                Severe chest pain radiating to the left arm, accompanied by shortness of breath and sweating. Started 30 minutes ago.
+              </p>
+            </div>
+
+            <div>
+              <h3 className="text-sm font-semibold text-on-surface mb-2">Vitals</h3>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div className="bg-surface-container-lowest p-2 rounded border border-border-light">
+                  <span className="text-on-surface-variant text-xs block">Heart Rate</span>
+                  <span className="font-semibold text-on-surface">110 bpm</span>
+                </div>
+                <div className="bg-surface-container-lowest p-2 rounded border border-border-light">
+                  <span className="text-on-surface-variant text-xs block">Blood Pressure</span>
+                  <span className="font-semibold text-on-surface">160/95 mmHg</span>
+                </div>
+                <div className="bg-surface-container-lowest p-2 rounded border border-border-light">
+                  <span className="text-on-surface-variant text-xs block">O2 Saturation</span>
+                  <span className="font-semibold text-on-surface">94%</span>
+                </div>
+                <div className="bg-surface-container-lowest p-2 rounded border border-border-light">
+                  <span className="text-on-surface-variant text-xs block">Temperature</span>
+                  <span className="font-semibold text-on-surface">98.6°F</span>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <h3 className="text-sm font-semibold text-on-surface mb-2">AI Triage Assessment</h3>
+              <div className="bg-status-critical-bg border border-status-critical-text/20 p-3 rounded">
+                <div className="flex items-center gap-2 mb-2 text-status-critical-text">
+                  <span className="material-symbols-outlined text-sm">warning</span>
+                  <span className="font-bold text-sm">High Risk - STEMI Protocol</span>
+                </div>
+                <p className="text-xs text-status-critical-text/80">
+                  Symptoms highly indicative of acute myocardial infarction. Immediate ECG and cardiology consult recommended.
+                </p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="p-4 border-t border-border-light bg-surface-container">
+            <button className="w-full bg-primary hover:bg-secondary text-on-primary py-2 rounded font-medium transition-colors cursor-pointer">
+              View Full Profile
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
