@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import PatientIntake from './pages/PatientIntake';
 import LiveDashboard from './pages/LiveDashboard';
+import Login from './pages/Login';
 
 function App() {
-  const [currentPage, setCurrentPage] = useState('patient-intake');
+  const [currentPage, setCurrentPage] = useState('login');
   const [isDarkMode, setIsDarkMode] = useState(() => {
     const savedTheme = localStorage.getItem('theme');
     return savedTheme === 'dark';
@@ -21,7 +22,9 @@ function App() {
 
   return (
     <>
-      {currentPage === 'patient-intake' ? (
+      {currentPage === 'login' ? (
+        <Login setCurrentPage={setCurrentPage} isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} />
+      ) : currentPage === 'patient-intake' ? (
         <PatientIntake setCurrentPage={setCurrentPage} isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} />
       ) : (
         <LiveDashboard setCurrentPage={setCurrentPage} isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} />
