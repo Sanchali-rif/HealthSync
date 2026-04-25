@@ -4,6 +4,7 @@ import { auth } from './config/firebase';
 import PatientIntake from './pages/PatientIntake';
 import LiveDashboard from './pages/LiveDashboard';
 import Login from './pages/Login';
+import Unauthorized from './pages/Unauthorized';
 
 function App() {
   const [currentPage, setCurrentPage] = useState(null); // null = loading
@@ -28,13 +29,18 @@ function App() {
       if (user) {
         // User is logged in — route based on saved role
         const role = localStorage.getItem('hs_role');
-        if (role === 'doctor') {
+        if (role === 'Nurse') {
+          setCurrentPage('patient-intake');
+        } else if (role === 'Doctor') {
           setCurrentPage('live-dashboard');
         } else {
-          setCurrentPage('patient-intake'); // default for nurses
+          // Logged in but no role yet (e.g. new Google user mid-flow)
+          setCurrentPage('login');
         }
       } else {
-        // No user — always show login
+        // No user — clear any stale session data and show login
+        localStorage.removeItem('hs_token');
+        localStorage.removeItem('hs_role');
         setCurrentPage('login');
       }
     });
@@ -54,14 +60,70 @@ function App() {
     );
   }
 
+  // ─── Role-based guards ──────────────────────────────────────────────────────
+  // NurseRoute: only Nurses may view PatientIntake
+  const NurseRoute = ({ children }) => {
+    const token = localStorage.getItem('hs_token');
+    const role  = localStorage.getItem('hs_role');
+    if (!token) {
+      setCurrentPage('login');
+      return null;
+    }
+    if (role !== 'Nurse') {
+      return <Unauthorized setCurrentPage={setCurrentPage} isDarkMode={isDarkMode} />;
+    }
+    return children;
+  };
+
+  // DoctorRoute: only Doctors may view LiveDashboard
+  const DoctorRoute = ({ children }) => {
+    const token = localStorage.getItem('hs_token');
+    const role  = localStorage.getItem('hs_role');
+    if (!token) {
+      setCurrentPage('login');
+      return null;
+    }
+    if (role !== 'Doctor') {
+      return <Unauthorized setCurrentPage={setCurrentPage} isDarkMode={isDarkMode} />;
+    }
+    return children;
+  };
+
   return (
     <>
-      {currentPage === 'login' ? (
-        <Login isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} />
-      ) : currentPage === 'patient-intake' ? (
-        <PatientIntake setCurrentPage={setCurrentPage} isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} />
-      ) : (
-        <LiveDashboard setCurrentPage={setCurrentPage} isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} />
+      {currentPage === 'login' && (
+        <Login
+          isDarkMode={isDarkMode}
+          setIsDarkMode={setIsDarkMode}
+          setCurrentPage={setCurrentPage}
+        />
+      )}
+
+      {currentPage === 'patient-intake' && (
+        <NurseRoute>
+          <PatientIntake
+            setCurrentPage={setCurrentPage}
+            isDarkMode={isDarkMode}
+            setIsDarkMode={setIsDarkMode}
+          />
+        </NurseRoute>
+      )}
+
+      {currentPage === 'live-dashboard' && (
+        <DoctorRoute>
+          <LiveDashboard
+            setCurrentPage={setCurrentPage}
+            isDarkMode={isDarkMode}
+            setIsDarkMode={setIsDarkMode}
+          />
+        </DoctorRoute>
+      )}
+
+      {currentPage === 'unauthorized' && (
+        <Unauthorized
+          setCurrentPage={setCurrentPage}
+          isDarkMode={isDarkMode}
+        />
       )}
     </>
   );
