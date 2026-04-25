@@ -1,12 +1,13 @@
 const express = require('express');
 const router = express.Router();
 const { verifyFirebaseToken } = require('../middleware/authMiddleware');
+const { requireNurse, requireDoctor } = require('../middleware/roleMiddleware');
 const Patient = require('../models/Patient');
 const getAITriage = require('../services/triageAI');
 const { getIO } = require('../config/socket');
 
 // POST /triage — register new patient, run AI triage, broadcast to dashboard
-router.post('/triage', verifyFirebaseToken, async (req, res) => {
+router.post('/triage', verifyFirebaseToken, requireNurse, async (req, res) => {
   try {
     const { name, age, gender, vitals, complaint } = req.body;
 
@@ -24,7 +25,7 @@ router.post('/triage', verifyFirebaseToken, async (req, res) => {
 });
 
 // GET /active — fetch all Waiting patients sorted by AI priority (1 = most critical)
-router.get('/active', verifyFirebaseToken, async (req, res) => {
+router.get('/active', verifyFirebaseToken, requireDoctor, async (req, res) => {
   try {
     const patients = await Patient.find({ status: 'Waiting' }).sort({
       'aiTriage.priorityLevel': 1,
@@ -37,7 +38,7 @@ router.get('/active', verifyFirebaseToken, async (req, res) => {
 });
 
 // PATCH /:id/status — update patient status and notify connected clients
-router.patch('/:id/status', verifyFirebaseToken, async (req, res) => {
+router.patch('/:id/status', verifyFirebaseToken, requireDoctor, async (req, res) => {
   try {
     const patientId = req.params.id;
     const { status } = req.body;

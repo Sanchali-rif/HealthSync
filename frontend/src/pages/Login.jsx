@@ -1,64 +1,147 @@
 import React, { useState } from 'react';
+import axios from 'axios';
 import {
   signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
   signInWithPopup,
 } from 'firebase/auth';
 import { auth, googleProvider } from '../config/firebase';
+import { BACKEND_URL, API_ROUTES } from '../config/api';
 
-function Login({ isDarkMode, setIsDarkMode }) {
-  const [role, setRole] = useState('nurse');
+function Login({ isDarkMode, setIsDarkMode, setCurrentPage }) {
+  const [role, setRole] = useState('nurse');         // toggle selection: 'nurse' | 'doctor'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [mode, setMode] = useState('signin'); // 'signin' | 'register'
+  const [mode, setMode] = useState('signin');        // 'signin' | 'register'
+  const [googlePendingUser, setGooglePendingUser] = useState(null); // set when Google user has no role yet
 
-  const saveRole = () => localStorage.setItem('hs_role', role);
+  // Capitalize the toggle value to match backend expectations
+  const getCapitalizedRole = () => (role === 'nurse' ? 'Nurse' : 'Doctor');
 
+  // Navigate based on role string returned from backend
+  const navigateByRole = (returnedRole) => {
+    localStorage.setItem('hs_role', returnedRole);
+    setCurrentPage(returnedRole === 'Nurse' ? 'patient-intake' : 'live-dashboard');
+  };
+
+  // ─── Sign In ─────────────────────────────────────────────────────────────────
   const handleSignIn = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
     try {
+      // 1. Call backend — source of truth for role
+      const response = await axios.post(API_ROUTES.login, { email, password });
+      const returnedRole = response.data.role; // 'Nurse' | 'Doctor'
+
+      // 2. Validate that the selected toggle matches the account's actual role
+      if (returnedRole !== getCapitalizedRole()) {
+        setError(
+          `This account is registered as a ${returnedRole}. Please select ${returnedRole} role.`
+        );
+        return;
+      }
+
+      // 3. Sign in on the Firebase client so auth.currentUser stays valid
       await signInWithEmailAndPassword(auth, email, password);
-      saveRole();
-      // App.jsx's onAuthStateChanged will handle the redirect
+
+      // 4. Persist session and navigate
+      localStorage.setItem('hs_token', response.data.token);
+      navigateByRole(returnedRole);
     } catch (err) {
-      setError(getFriendlyError(err.code));
+      const backendMsg = err.response?.data?.error;
+      setError(backendMsg || getFriendlyError(err.code));
     } finally {
       setLoading(false);
     }
   };
 
+  // ─── Register ────────────────────────────────────────────────────────────────
   const handleRegister = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
     try {
-      await createUserWithEmailAndPassword(auth, email, password);
-      saveRole();
-      // Auto-logs in after registration, App.jsx handles redirect
+      const capitalizedRole = getCapitalizedRole();
+
+      // 1. Create user in Firebase via backend (sets custom claim)
+      await axios.post(API_ROUTES.register, {
+        email,
+        password,
+        role: capitalizedRole,
+      });
+
+      // 2. Sign in on the Firebase client
+      await signInWithEmailAndPassword(auth, email, password);
+
+      // 3. Persist and navigate
+      navigateByRole(capitalizedRole);
     } catch (err) {
-      setError(getFriendlyError(err.code));
+      const backendMsg = err.response?.data?.error;
+      setError(backendMsg || getFriendlyError(err.code));
     } finally {
       setLoading(false);
     }
   };
 
+  // ─── Google Sign In ───────────────────────────────────────────────────────────
   const handleGoogleSignIn = async () => {
     setError('');
     setLoading(true);
     try {
-      await signInWithPopup(auth, googleProvider);
-      saveRole();
+      // 1. Firebase popup — signs user into Firebase client
+      const result = await signInWithPopup(auth, googleProvider);
+      const idToken = await result.user.getIdToken();
+
+      // 2. Ask backend to verify token + return role (or needsRole flag)
+      const response = await axios.post(API_ROUTES.google, { idToken });
+
+      if (response.data.needsRole) {
+        // New Google user — pause and show role selection screen
+        setGooglePendingUser(response.data); // { uid, email, name, picture }
+        return;
+      }
+
+      // Existing Google user with role
+      const returnedRole = response.data.role;
+      localStorage.setItem('hs_token', response.data.token || idToken);
+      navigateByRole(returnedRole);
     } catch (err) {
-      setError(getFriendlyError(err.code));
+      const backendMsg = err.response?.data?.error;
+      setError(backendMsg || getFriendlyError(err.code));
     } finally {
       setLoading(false);
     }
   };
 
+  // ─── Assign Role (Google new users) ──────────────────────────────────────────
+  const handleAssignRole = async (selectedRole) => {
+    setError('');
+    setLoading(true);
+    try {
+      // 1. Set the role claim on the backend
+      await axios.post(API_ROUTES.assignRole, {
+        uid: googlePendingUser.uid,
+        role: selectedRole,
+      });
+
+      // 2. Force-refresh the Firebase ID token so new claim is embedded
+      const freshToken = await auth.currentUser?.getIdToken(true);
+      if (freshToken) localStorage.setItem('hs_token', freshToken);
+
+      // 3. Clear pending state and navigate
+      setGooglePendingUser(null);
+      navigateByRole(selectedRole);
+    } catch (err) {
+      const backendMsg = err.response?.data?.error;
+      setError(backendMsg || 'Failed to assign role. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ─── Error helper ─────────────────────────────────────────────────────────────
   const getFriendlyError = (code) => {
     switch (code) {
       case 'auth/user-not-found':
@@ -80,6 +163,50 @@ function Login({ isDarkMode, setIsDarkMode }) {
 
   const isRegister = mode === 'register';
 
+  // ─── Google Role Selection Screen ─────────────────────────────────────────────
+  if (googlePendingUser) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-gray-900 transition-colors duration-300">
+        <div className="max-w-md w-full px-6 py-8">
+          <h2 className="text-[32px] font-bold text-gray-900 dark:text-white mb-1">
+            Select your role
+          </h2>
+          <p className="text-base text-gray-800 dark:text-gray-300 mb-6">
+            Welcome, {googlePendingUser.name || googlePendingUser.email}. How will you use HealthSync?
+          </p>
+
+          {error && (
+            <p className="text-red-500 text-sm mb-4">{error}</p>
+          )}
+
+          <div className="space-y-3">
+            <button
+              onClick={() => handleAssignRole('Nurse')}
+              disabled={loading}
+              className="w-full py-3 px-4 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-60 text-gray-800 dark:text-gray-200 font-medium focus:outline-none transition-colors text-left flex items-center gap-3"
+            >
+              <span className="material-symbols-outlined text-[#0d6efd]">medical_services</span>
+              I am a Nurse
+            </button>
+            <button
+              onClick={() => handleAssignRole('Doctor')}
+              disabled={loading}
+              className="w-full py-3 px-4 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-60 text-gray-800 dark:text-gray-200 font-medium focus:outline-none transition-colors text-left flex items-center gap-3"
+            >
+              <span className="material-symbols-outlined text-[#0d6efd]">stethoscope</span>
+              I am a Doctor
+            </button>
+          </div>
+
+          {loading && (
+            <p className="text-slate-500 dark:text-slate-400 text-sm text-center mt-4">Saving your role...</p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ─── Main Login / Register Screen ─────────────────────────────────────────────
   return (
     <div className="min-h-screen flex items-center justify-center bg-white dark:bg-gray-900 transition-colors duration-300">
       <div className="absolute top-4 right-4">
