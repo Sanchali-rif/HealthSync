@@ -96,37 +96,55 @@ const refreshToken = async (req, res) => {
   }
 }
 
-// POST /google — verify Google ID token, check role, return session
+// POST /google — verify Google ID token, check/assign role, return session
 const googleSignIn = async (req, res) => {
   try {
-    const { idToken } = req.body
+    const { idToken, role: requestedRole } = req.body
 
+    // 1. Validate role if one was provided in the request body
+    if (requestedRole !== undefined && requestedRole !== 'Nurse' && requestedRole !== 'Doctor') {
+      return res.status(400).json({ error: 'Role must be Nurse or Doctor' })
+    }
+
+    // 2. Verify the Google ID token
     const decodedToken = await admin.auth().verifyIdToken(idToken)
     const { uid, email, name, picture } = decodedToken
 
-    const userRecord = await admin.auth().getUser(uid)
-    const role = userRecord.customClaims?.role || null
+    // 3. Fetch the user record to inspect existing custom claims
+    let userRecord = await admin.auth().getUser(uid)
+    const isNewUser = userRecord.metadata.creationTime === userRecord.metadata.lastSignInTime
+    let existingRole = userRecord.customClaims?.role || null
 
-    if (!role) {
-      return res.status(200).json({
-        needsRole: true,
-        uid: uid,
-        email: email,
-        name: name,
-        picture: picture,
-      })
+    // 4. Determine final role
+    let finalRole = existingRole
+
+    if (!existingRole) {
+      if (requestedRole) {
+        // Role provided in request — assign it now
+        await admin.auth().setCustomUserClaims(uid, { role: requestedRole })
+        finalRole = requestedRole
+      } else {
+        // No existing role and none provided — ask the client to select one
+        return res.status(200).json({
+          needsRole: true,
+          uid,
+          email,
+          name,
+          picture,
+        })
+      }
     }
 
-    // Role exists — issue a custom token and return full session
-    const customToken = await admin.auth().createCustomToken(uid)
-
+    // 5. Role is confirmed — return full session
     return res.status(200).json({
       token: idToken,
-      uid: uid,
-      email: email,
-      name: name,
-      picture: picture,
-      role: role,
+      refreshToken: decodedToken.refreshToken || null,
+      uid,
+      email,
+      name,
+      picture,
+      role: finalRole,
+      isNewUser,
     })
   } catch (error) {
     return res.status(401).json({ error: error.message })
@@ -150,10 +168,87 @@ const assignRole = async (req, res) => {
   }
 }
 
+const forgotPassword = async (req, res) => {
+  const { email } = req.body
+  
+  console.log("=== FORGOT PASSWORD ===")
+  console.log("Email received:", email)
+  console.log("Firebase Web API Key exists:", 
+    !!process.env.FIREBASE_WEB_API_KEY)
+  console.log("Key first 10 chars:", 
+    process.env.FIREBASE_WEB_API_KEY
+      ? process.env.FIREBASE_WEB_API_KEY
+          .substring(0,10) + "..."
+      : "MISSING")
+
+  try {
+    // Check user exists
+    const userRecord = await admin.auth()
+      .getUserByEmail(email)
+    console.log("User found:", userRecord.uid)
+
+    // Send reset email
+    const resetResponse = await axios.post(
+      `https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key=${process.env.FIREBASE_WEB_API_KEY}`,
+      {
+        requestType: "PASSWORD_RESET",
+        email: email
+      }
+    )
+    console.log("Reset email sent:", 
+      resetResponse.data)
+
+    return res.status(200).json({
+      message: "Password reset email sent. Please check your inbox.",
+      email: email
+    })
+
+  } catch (error) {
+    console.log("=== FORGOT PASSWORD ERROR ===")
+    console.log("Error message:", error.message)
+    console.log("Error response:", 
+      error.response?.data)
+    console.log("==============================")
+
+    if (error.code === 'auth/user-not-found') {
+      return res.status(404).json({ 
+        error: "No account found with this email" 
+      })
+    }
+
+    return res.status(500).json({ 
+      error: "Failed to send reset email. Please try again." 
+    })
+  }
+};
+
+const resetPassword = async (req, res) => {
+  const { oobCode, newPassword } = req.body;
+  if (!oobCode || !newPassword) {
+    return res.status(400).json({ error: "Reset code and new password are required" });
+  }
+  if (newPassword.length < 6) {
+    return res.status(400).json({ error: "Password must be at least 6 characters" });
+  }
+
+  try {
+    await axios.post(`https://identitytoolkit.googleapis.com/v1/accounts:resetPassword?key=${process.env.FIREBASE_WEB_API_KEY}`, {
+      oobCode: oobCode,
+      newPassword: newPassword
+    });
+
+    return res.status(200).json({ message: "Password reset successful. You can now login with your new password." });
+  } catch (error) {
+    return res.status(400).json({ error: "Invalid or expired reset code. Please request a new password reset." });
+  }
+};
+
 module.exports = {
   createUser,
   loginUser,
   refreshToken,
   googleSignIn,
   assignRole,
+  forgotPassword,
+  resetPassword,
 }

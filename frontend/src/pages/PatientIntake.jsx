@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import axiosInstance from '../utils/axiosInstance';
 import { API_ROUTES } from '../config/api';
 import { auth } from '../config/firebase';
@@ -39,16 +40,22 @@ const priorityConfig = {
   },
 };
 
-export default function PatientIntake({ setCurrentPage, isDarkMode, setIsDarkMode }) {
+export default function PatientIntake({ isDarkMode, setIsDarkMode }) {
+  const navigate = useNavigate();
   const [triageResult, setTriageResult] = useState(null);
 
   const handleLogout = async () => {
     try {
+      localStorage.removeItem('hs_token');
+      localStorage.removeItem('hs_refresh');
+      localStorage.removeItem('hs_role');
       await signOut(auth);
+      navigate('/login');
     } catch (err) {
       console.error('Failed to log out:', err);
     }
   };
+  const role = localStorage.getItem('hs_role');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -103,20 +110,24 @@ export default function PatientIntake({ setCurrentPage, isDarkMode, setIsDarkMod
           <span className="text-lg font-black tracking-tight text-slate-900 dark:text-slate-50 uppercase">HealthSync</span>
         </div>
         <nav className="flex space-x-6 h-full items-end">
-          <a
-            className="text-slate-900 dark:text-slate-50 font-bold border-b-2 border-slate-900 dark:border-slate-50 pb-[17px] hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer active:opacity-70"
-            onClick={(e) => e.preventDefault()}
-            href="#"
-          >
-            Patient Intake
-          </a>
-          <a
-            className="text-slate-500 dark:text-slate-400 font-medium pb-[17px] hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer active:opacity-70"
-            onClick={(e) => { e.preventDefault(); if (setCurrentPage) setCurrentPage('live-dashboard'); }}
-            href="#"
-          >
-            Live Dashboard
-          </a>
+          {role === 'Nurse' && (
+            <a
+              className="text-slate-900 dark:text-slate-50 font-bold border-b-2 border-slate-900 dark:border-slate-50 pb-[17px] hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer active:opacity-70"
+              onClick={(e) => e.preventDefault()}
+              href="#"
+            >
+              Patient Intake
+            </a>
+          )}
+          {role === 'Doctor' && (
+            <a
+              className="text-slate-500 dark:text-slate-400 font-medium pb-[17px] mt-4 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer active:opacity-70 font-body-sm text-body-sm"
+              onClick={(e) => { e.preventDefault(); navigate('/dashboard'); }}
+              href="#"
+            >
+              Live Dashboard
+            </a>
+          )}
         </nav>
         <div className="flex items-center space-x-4">
           <div className="flex items-center gap-2 px-2 py-1 bg-status-non-urgent-bg dark:bg-[#14532d]/40 rounded-DEFAULT border border-status-non-urgent-text border-opacity-20 dark:border-green-600">
@@ -147,14 +158,18 @@ export default function PatientIntake({ setCurrentPage, isDarkMode, setIsDarkMod
 
       {/* SideNavBar (Mobile) */}
       <nav className="md:hidden fixed bottom-0 w-full bg-white border-t border-slate-200 z-50 flex justify-around py-3">
-        <a className="flex flex-col items-center text-primary" onClick={(e) => e.preventDefault()} href="#">
-          <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>assignment</span>
-          <span className="text-[10px] font-semibold mt-1">Intake</span>
-        </a>
-        <a className="flex flex-col items-center text-slate-500" onClick={(e) => { e.preventDefault(); if (setCurrentPage) setCurrentPage('live-dashboard'); }} href="#">
-          <span className="material-symbols-outlined">dashboard</span>
-          <span className="text-[10px] font-medium mt-1">Dashboard</span>
-        </a>
+        {role === 'Nurse' && (
+          <a className="flex flex-col items-center text-primary" onClick={(e) => e.preventDefault()} href="#">
+            <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>assignment</span>
+            <span className="text-[10px] font-semibold mt-1">Intake</span>
+          </a>
+        )}
+        {role === 'Doctor' && (
+          <a className="flex flex-col items-center text-slate-500" onClick={(e) => { e.preventDefault(); navigate('/dashboard'); }} href="#">
+            <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>dashboard</span>
+            <span className="text-[10px] font-medium mt-1">Dashboard</span>
+          </a>
+        )}
       </nav>
 
       {/* Main Content Canvas */}
@@ -286,10 +301,10 @@ export default function PatientIntake({ setCurrentPage, isDarkMode, setIsDarkMod
 
                       <button
                         type="button"
-                        onClick={() => setCurrentPage && setCurrentPage('live-dashboard')}
+                        onClick={() => setTriageResult(null)}
                         className={`mt-4 w-full ${cfg.badgeBg} ${cfg.badgeText} font-data-tabular text-data-tabular py-2 px-4 rounded-DEFAULT hover:opacity-90 transition-colors font-bold uppercase`}
                       >
-                        View on Dashboard
+                        Submit Another Patient
                       </button>
                     </div>
                   </div>
