@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import axios from 'axios';
+import { useNavigate, Link } from 'react-router-dom';
 import {
   signInWithEmailAndPassword,
   signInWithPopup,
@@ -7,14 +8,15 @@ import {
 import { auth, googleProvider } from '../config/firebase';
 import { BACKEND_URL, API_ROUTES } from '../config/api';
 
-function Login({ isDarkMode, setIsDarkMode, setCurrentPage }) {
+function Login({ isDarkMode, setIsDarkMode }) {
+  const navigate = useNavigate();
   const [role, setRole] = useState('nurse');         // toggle selection: 'nurse' | 'doctor'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [mode, setMode] = useState('signin');        // 'signin' | 'register'
-  const [googlePendingUser, setGooglePendingUser] = useState(null); // set when Google user has no role yet
+
 
   // Capitalize the toggle value to match backend expectations
   const getCapitalizedRole = () => (role === 'nurse' ? 'Nurse' : 'Doctor');
@@ -22,7 +24,7 @@ function Login({ isDarkMode, setIsDarkMode, setCurrentPage }) {
   // Navigate based on role string returned from backend
   const navigateByRole = (returnedRole) => {
     localStorage.setItem('hs_role', returnedRole);
-    setCurrentPage(returnedRole === 'Nurse' ? 'patient-intake' : 'live-dashboard');
+    navigate(returnedRole === 'Nurse' ? '/intake' : '/dashboard');
   };
 
   // ─── Sign In ─────────────────────────────────────────────────────────────────
@@ -88,54 +90,40 @@ function Login({ isDarkMode, setIsDarkMode, setCurrentPage }) {
   // ─── Google Sign In ───────────────────────────────────────────────────────────
   const handleGoogleSignIn = async () => {
     setError('');
+
+    // Role must be selected on the toggle before Google sign-in
+    const capitalizedRole = getCapitalizedRole();
+    if (!capitalizedRole) {
+      setError('Please select Nurse or Doctor first');
+      return;
+    }
+
     setLoading(true);
     try {
       // 1. Firebase popup — signs user into Firebase client
       const result = await signInWithPopup(auth, googleProvider);
       const idToken = await result.user.getIdToken();
 
-      // 2. Ask backend to verify token + return role (or needsRole flag)
-      const response = await axios.post(API_ROUTES.google, { idToken });
+      // 2. Send idToken + selected role to backend
+      const response = await axios.post(API_ROUTES.google, {
+        idToken,
+        role: capitalizedRole,
+      });
 
       if (response.data.needsRole) {
-        // New Google user — pause and show role selection screen
-        setGooglePendingUser(response.data); // { uid, email, name, picture }
+        // Should not happen since we always send a role,
+        // but guard against it just in case
+        setError('Please select your role (Nurse or Doctor) before signing in with Google');
         return;
       }
 
-      // Existing Google user with role
+      // Role confirmed — persist and navigate
       const returnedRole = response.data.role;
       localStorage.setItem('hs_token', response.data.token || idToken);
       navigateByRole(returnedRole);
     } catch (err) {
       const backendMsg = err.response?.data?.error;
       setError(backendMsg || getFriendlyError(err.code));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // ─── Assign Role (Google new users) ──────────────────────────────────────────
-  const handleAssignRole = async (selectedRole) => {
-    setError('');
-    setLoading(true);
-    try {
-      // 1. Set the role claim on the backend
-      await axios.post(API_ROUTES.assignRole, {
-        uid: googlePendingUser.uid,
-        role: selectedRole,
-      });
-
-      // 2. Force-refresh the Firebase ID token so new claim is embedded
-      const freshToken = await auth.currentUser?.getIdToken(true);
-      if (freshToken) localStorage.setItem('hs_token', freshToken);
-
-      // 3. Clear pending state and navigate
-      setGooglePendingUser(null);
-      navigateByRole(selectedRole);
-    } catch (err) {
-      const backendMsg = err.response?.data?.error;
-      setError(backendMsg || 'Failed to assign role. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -162,49 +150,6 @@ function Login({ isDarkMode, setIsDarkMode, setCurrentPage }) {
   };
 
   const isRegister = mode === 'register';
-
-  // ─── Google Role Selection Screen ─────────────────────────────────────────────
-  if (googlePendingUser) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-gray-900 transition-colors duration-300">
-        <div className="max-w-md w-full px-6 py-8">
-          <h2 className="text-[32px] font-bold text-gray-900 dark:text-white mb-1">
-            Select your role
-          </h2>
-          <p className="text-base text-gray-800 dark:text-gray-300 mb-6">
-            Welcome, {googlePendingUser.name || googlePendingUser.email}. How will you use HealthSync?
-          </p>
-
-          {error && (
-            <p className="text-red-500 text-sm mb-4">{error}</p>
-          )}
-
-          <div className="space-y-3">
-            <button
-              onClick={() => handleAssignRole('Nurse')}
-              disabled={loading}
-              className="w-full py-3 px-4 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-60 text-gray-800 dark:text-gray-200 font-medium focus:outline-none transition-colors text-left flex items-center gap-3"
-            >
-              <span className="material-symbols-outlined text-[#0d6efd]">medical_services</span>
-              I am a Nurse
-            </button>
-            <button
-              onClick={() => handleAssignRole('Doctor')}
-              disabled={loading}
-              className="w-full py-3 px-4 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-60 text-gray-800 dark:text-gray-200 font-medium focus:outline-none transition-colors text-left flex items-center gap-3"
-            >
-              <span className="material-symbols-outlined text-[#0d6efd]">stethoscope</span>
-              I am a Doctor
-            </button>
-          </div>
-
-          {loading && (
-            <p className="text-slate-500 dark:text-slate-400 text-sm text-center mt-4">Saving your role...</p>
-          )}
-        </div>
-      </div>
-    );
-  }
 
   // ─── Main Login / Register Screen ─────────────────────────────────────────────
   return (
@@ -240,7 +185,7 @@ function Login({ isDarkMode, setIsDarkMode, setCurrentPage }) {
 
         <form onSubmit={isRegister ? handleRegister : handleSignIn} className="space-y-4">
           {/* Role Selector */}
-          <div className="flex p-1 bg-gray-100 dark:bg-gray-800 rounded-lg mb-6">
+          <div className="flex p-1 bg-gray-100 dark:bg-gray-800 rounded-lg">
             <button
               type="button"
               className={`flex-1 py-2.5 text-sm font-semibold rounded-md transition-colors ${role === 'nurse' ? 'bg-white dark:bg-gray-700 shadow-sm text-gray-900 dark:text-white' : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'}`}
@@ -256,6 +201,7 @@ function Login({ isDarkMode, setIsDarkMode, setCurrentPage }) {
               Doctor
             </button>
           </div>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5 mb-4">Select your role before signing in</p>
 
           <div>
             <input
@@ -322,9 +268,9 @@ function Login({ isDarkMode, setIsDarkMode, setCurrentPage }) {
 
           {!isRegister && (
             <div className="pt-2 text-left">
-              <a href="#" className="text-sm font-medium text-[#0d6efd] dark:text-blue-400 hover:underline">
+              <Link to="/forgot-password" className="text-sm font-medium text-[#0d6efd] dark:text-blue-400 hover:underline">
                 Forgotten your password?
-              </a>
+              </Link>
             </div>
           )}
         </form>

@@ -17,4 +17,10 @@ router.post('/google', authController.googleSignIn)
 // POST /api/auth/assign-role — assign Nurse or Doctor role to a user
 router.post('/assign-role', authController.assignRole)
 
+// POST /api/auth/forgot-password - send password reset email
+router.post('/forgot-password', authController.forgotPassword)
+
+// POST /api/auth/reset-password - reset password using oobCode
+router.post('/reset-password', authController.resetPassword)
+
 module.exports = router

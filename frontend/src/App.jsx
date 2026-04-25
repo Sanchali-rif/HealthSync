@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from './config/firebase';
 import PatientIntake from './pages/PatientIntake';
 import LiveDashboard from './pages/LiveDashboard';
 import Login from './pages/Login';
-import Unauthorized from './pages/Unauthorized';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 
 function App() {
-  const [currentPage, setCurrentPage] = useState(null); // null = loading
+  const [authChecked, setAuthChecked] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(() => {
     const savedTheme = localStorage.getItem('theme');
     return savedTheme === 'dark';
@@ -23,33 +25,20 @@ function App() {
     }
   }, [isDarkMode]);
 
-  // Listen to Firebase auth state — the single source of truth
+  // Listen to Firebase auth state
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        // User is logged in — route based on saved role
-        const role = localStorage.getItem('hs_role');
-        if (role === 'Nurse') {
-          setCurrentPage('patient-intake');
-        } else if (role === 'Doctor') {
-          setCurrentPage('live-dashboard');
-        } else {
-          // Logged in but no role yet (e.g. new Google user mid-flow)
-          setCurrentPage('login');
-        }
-      } else {
-        // No user — clear any stale session data and show login
+      if (!user) {
         localStorage.removeItem('hs_token');
         localStorage.removeItem('hs_role');
-        setCurrentPage('login');
       }
+      setAuthChecked(true);
     });
 
     return () => unsubscribe();
   }, []);
 
-  // Show a loading screen while Firebase checks auth state
-  if (currentPage === null) {
+  if (!authChecked) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white dark:bg-gray-900">
         <div className="flex flex-col items-center gap-3">
@@ -60,72 +49,43 @@ function App() {
     );
   }
 
-  // ─── Role-based guards ──────────────────────────────────────────────────────
-  // NurseRoute: only Nurses may view PatientIntake
   const NurseRoute = ({ children }) => {
     const token = localStorage.getItem('hs_token');
     const role  = localStorage.getItem('hs_role');
-    if (!token) {
-      setCurrentPage('login');
-      return null;
-    }
-    if (role !== 'Nurse') {
-      return <Unauthorized setCurrentPage={setCurrentPage} isDarkMode={isDarkMode} />;
-    }
-    return children;
+    if (!token) return <Navigate to="/login" replace />;
+    if (role === 'Doctor') return <Navigate to="/dashboard" replace />;
+    if (role === 'Nurse') return children;
+    return <Navigate to="/login" replace />;
   };
 
-  // DoctorRoute: only Doctors may view LiveDashboard
   const DoctorRoute = ({ children }) => {
     const token = localStorage.getItem('hs_token');
     const role  = localStorage.getItem('hs_role');
-    if (!token) {
-      setCurrentPage('login');
-      return null;
-    }
-    if (role !== 'Doctor') {
-      return <Unauthorized setCurrentPage={setCurrentPage} isDarkMode={isDarkMode} />;
-    }
-    return children;
+    if (!token) return <Navigate to="/login" replace />;
+    if (role === 'Nurse') return <Navigate to="/intake" replace />;
+    if (role === 'Doctor') return children;
+    return <Navigate to="/login" replace />;
   };
 
   return (
-    <>
-      {currentPage === 'login' && (
-        <Login
-          isDarkMode={isDarkMode}
-          setIsDarkMode={setIsDarkMode}
-          setCurrentPage={setCurrentPage}
-        />
-      )}
-
-      {currentPage === 'patient-intake' && (
-        <NurseRoute>
-          <PatientIntake
-            setCurrentPage={setCurrentPage}
-            isDarkMode={isDarkMode}
-            setIsDarkMode={setIsDarkMode}
-          />
-        </NurseRoute>
-      )}
-
-      {currentPage === 'live-dashboard' && (
-        <DoctorRoute>
-          <LiveDashboard
-            setCurrentPage={setCurrentPage}
-            isDarkMode={isDarkMode}
-            setIsDarkMode={setIsDarkMode}
-          />
-        </DoctorRoute>
-      )}
-
-      {currentPage === 'unauthorized' && (
-        <Unauthorized
-          setCurrentPage={setCurrentPage}
-          isDarkMode={isDarkMode}
-        />
-      )}
-    </>
+    <Router>
+      <Routes>
+        <Route path="/login" element={<Login isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} />} />
+        <Route path="/forgot-password" element={<ForgotPassword isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} />} />
+        <Route path="/reset-password" element={<ResetPassword isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} />} />
+        <Route path="/intake" element={
+          <NurseRoute>
+            <PatientIntake isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} />
+          </NurseRoute>
+        } />
+        <Route path="/dashboard" element={
+          <DoctorRoute>
+            <LiveDashboard isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} />
+          </DoctorRoute>
+        } />
+        <Route path="*" element={<Navigate to="/login" replace />} />
+      </Routes>
+    </Router>
   );
 }
 

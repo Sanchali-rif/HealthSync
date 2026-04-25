@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { io } from 'socket.io-client';
 import axiosInstance from '../utils/axiosInstance';
 import { API_ROUTES, SOCKET_URL } from '../config/api';
@@ -23,7 +24,8 @@ const getWaitMins = (createdAt) => {
   return Math.floor((Date.now() - new Date(createdAt).getTime()) / 60000);
 };
 
-export default function LiveDashboard({ setCurrentPage, isDarkMode, setIsDarkMode }) {
+export default function LiveDashboard({ isDarkMode, setIsDarkMode }) {
+  const navigate = useNavigate();
   const [patients, setPatients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -34,11 +36,17 @@ export default function LiveDashboard({ setCurrentPage, isDarkMode, setIsDarkMod
 
   const handleLogout = async () => {
     try {
+      localStorage.removeItem('hs_token');
+      localStorage.removeItem('hs_refresh');
+      localStorage.removeItem('hs_role');
       await signOut(auth);
+      navigate('/login');
     } catch (err) {
       console.error('Failed to log out:', err);
     }
   };
+
+  const role = localStorage.getItem('hs_role');
 
   // Fetch active patients on mount
   useEffect(() => {
@@ -114,20 +122,24 @@ export default function LiveDashboard({ setCurrentPage, isDarkMode, setIsDarkMod
         <div className="flex items-center gap-8 h-full">
           <div className="text-lg font-black tracking-tight text-slate-900 dark:text-slate-50 uppercase font-logo text-logo">HealthSync</div>
           <nav className="hidden md:flex h-full gap-6">
-            <a
-              className="flex items-center text-slate-500 dark:text-slate-400 font-medium pb-[17px] mt-4 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer active:opacity-70 font-body-sm text-body-sm"
-              onClick={(e) => { e.preventDefault(); if (setCurrentPage) setCurrentPage('patient-intake'); }}
-              href="#"
-            >
-              Patient Intake
-            </a>
-            <a
-              className="flex items-center text-slate-900 dark:text-slate-50 font-bold border-b-2 border-slate-900 dark:border-slate-50 pb-[17px] mt-4 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer active:opacity-70 font-body-sm text-body-sm"
-              onClick={(e) => e.preventDefault()}
-              href="#"
-            >
-              Live Dashboard
-            </a>
+            {role === 'Nurse' && (
+              <a
+                className="flex items-center text-slate-500 dark:text-slate-400 font-medium pb-[17px] mt-4 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer active:opacity-70 font-body-sm text-body-sm"
+                onClick={(e) => { e.preventDefault(); navigate('/intake'); }}
+                href="#"
+              >
+                Patient Intake
+              </a>
+            )}
+            {role === 'Doctor' && (
+              <a
+                className="flex items-center text-slate-900 dark:text-slate-50 font-bold border-b-2 border-slate-900 dark:border-slate-50 pb-[17px] mt-4 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer active:opacity-70 font-body-sm text-body-sm"
+                onClick={(e) => e.preventDefault()}
+                href="#"
+              >
+                Live Dashboard
+              </a>
+            )}
           </nav>
         </div>
         <div className="flex items-center gap-4 text-slate-900 dark:text-slate-50">
@@ -152,14 +164,18 @@ export default function LiveDashboard({ setCurrentPage, isDarkMode, setIsDarkMod
 
       {/* SideNavBar (Mobile) */}
       <nav className="md:hidden fixed bottom-0 w-full bg-white border-t border-slate-200 z-50 flex justify-around py-3">
-        <a className="flex flex-col items-center text-slate-500" onClick={(e) => { e.preventDefault(); if (setCurrentPage) setCurrentPage('patient-intake'); }} href="#">
-          <span className="material-symbols-outlined">assignment</span>
-          <span className="text-[10px] font-medium mt-1">Intake</span>
-        </a>
-        <a className="flex flex-col items-center text-primary" onClick={(e) => e.preventDefault()} href="#">
-          <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>dashboard</span>
-          <span className="text-[10px] font-semibold mt-1">Dashboard</span>
-        </a>
+        {role === 'Nurse' && (
+          <a className="flex flex-col items-center text-slate-500" onClick={(e) => { e.preventDefault(); navigate('/intake'); }} href="#">
+            <span className="material-symbols-outlined">assignment</span>
+            <span className="text-[10px] font-medium mt-1">Intake</span>
+          </a>
+        )}
+        {role === 'Doctor' && (
+          <a className="flex flex-col items-center text-primary" onClick={(e) => e.preventDefault()} href="#">
+            <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>dashboard</span>
+            <span className="text-[10px] font-semibold mt-1">Dashboard</span>
+          </a>
+        )}
       </nav>
 
       <main className="flex-1 p-container-padding overflow-x-hidden pb-24 md:pb-container-padding mt-14 md:mt-0">
