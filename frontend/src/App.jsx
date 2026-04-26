@@ -7,6 +7,7 @@ import LiveDashboard from './pages/LiveDashboard';
 import Login from './pages/Login';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
+import RegionalCommand from './pages/RegionalCommand';
 
 function App() {
   const [authChecked, setAuthChecked] = useState(false);
@@ -67,6 +68,14 @@ function App() {
     return <Navigate to="/login" replace />;
   };
 
+  const SharedRoute = ({ children }) => {
+    const token = localStorage.getItem('hs_token');
+    const role  = localStorage.getItem('hs_role');
+    if (!token) return <Navigate to="/login" replace />;
+    if (role === 'Doctor' || role === 'Nurse') return children;
+    return <Navigate to="/login" replace />;
+  };
+
   return (
     <Router>
       <Routes>
@@ -82,6 +91,9 @@ function App() {
           <DoctorRoute>
             <LiveDashboard isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} />
           </DoctorRoute>
+        } />
+        <Route path="/regional" element={
+            <RegionalCommand isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} />
         } />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
