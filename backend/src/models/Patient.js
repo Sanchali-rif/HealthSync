@@ -16,11 +16,30 @@ const PatientSchema = new mongoose.Schema({
     priorityLabel: { type: String },
     department: { type: String },
     justification: { type: String },
+    suggestedHospital: { type: String },
+    dispatchReason: { type: String },
   },
   status: {
     type: String,
     enum: ['Waiting', 'Admitted', 'Treated'],
     default: 'Waiting',
+  },
+  hospitalId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Hospital",
+    default: null
+  },
+  hospitalName: {
+    type: String,
+    default: null
+  },
+  suggestedHospital: {
+    type: String,
+    default: null
+  },
+  dispatchReason: {
+    type: String,
+    default: null
   },
   createdAt: {
     type: Date,

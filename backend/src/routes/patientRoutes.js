@@ -3,18 +3,50 @@ const router = express.Router();
 const { verifyFirebaseToken } = require('../middleware/authMiddleware');
 const { requireNurse, requireDoctor } = require('../middleware/roleMiddleware');
 const Patient = require('../models/Patient');
+const Hospital = require('../models/Hospital');
 const getAITriage = require('../services/triageAI');
 const { getIO } = require('../config/socket');
 
 // POST /triage — register new patient, run AI triage, broadcast to dashboard
 router.post('/triage', verifyFirebaseToken, requireNurse, async (req, res) => {
   try {
-    const { name, age, gender, vitals, complaint } = req.body;
+    const { name, age, gender, vitals, complaint, hospitalId } = req.body;
 
-    const aiTriage = await getAITriage({ age, complaint, vitals });
+    const hospitals = await Hospital.find({ isActive: true });
 
-    const newPatient = new Patient({ name, age, gender, vitals, complaint, aiTriage });
+    const aiTriage = await getAITriage({ age, complaint, vitals }, hospitals);
+
+    const suggestedHospital = hospitals.find(
+      h => h.name === aiTriage.suggestedHospital
+    );
+
+    const newPatient = new Patient({
+      name,
+      age,
+      gender,
+      vitals,
+      complaint,
+      aiTriage,
+      hospitalId: suggestedHospital?._id || null,
+      hospitalName: suggestedHospital?.name || null,
+      suggestedHospital: aiTriage.suggestedHospital,
+      dispatchReason: aiTriage.dispatchReason
+    });
+
     const savedPatient = await newPatient.save();
+
+    if (suggestedHospital) {
+      await Hospital.findByIdAndUpdate(
+        suggestedHospital._id,
+        {
+          $inc: { 
+            availableBeds: -1, 
+            occupiedBeds: 1 
+          }
+        }
+      );
+      getIO().emit("hospitalUpdated", await Hospital.findById(suggestedHospital._id));
+    }
 
     getIO().emit('newPatient', savedPatient);
 
