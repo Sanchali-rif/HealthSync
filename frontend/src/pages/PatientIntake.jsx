@@ -5,6 +5,13 @@ import { API_ROUTES } from '../config/api';
 import { auth } from '../config/firebase';
 import { signOut } from 'firebase/auth';
 
+const priorityDisplayLabel = {
+  1: 'Critical',
+  2: 'Urgent',
+  3: 'Moderate',
+  4: 'Non-Urgent',
+};
+
 const priorityConfig = {
   1: {
     bg: 'bg-status-critical-bg dark:bg-[#450a0a]',
@@ -97,6 +104,20 @@ export default function PatientIntake({ isDarkMode, setIsDarkMode }) {
     } finally {
       setLoading(false);
     }
+  };
+
+  const resetForm = () => {
+    setTriageResult(null);
+    setError('');
+    if (nameRef.current)     nameRef.current.value     = 'John Doe';
+    if (ageRef.current)      ageRef.current.value      = '54';
+    if (genderRef.current)   genderRef.current.value   = 'Male';
+    if (arrivalRef.current)  arrivalRef.current.value  = '14:23';
+    if (hrRef.current)       hrRef.current.value       = '100';
+    if (bpRef.current)       bpRef.current.value       = '120/80';
+    if (tempRef.current)     tempRef.current.value     = '37.2';
+    if (spo2Ref.current)     spo2Ref.current.value     = '95';
+    if (complaintRef.current) complaintRef.current.value = 'Patient complains of severe, crushing chest pain radiating to the left arm and jaw. Started 45 minutes ago. Diaphoretic upon arrival.';
   };
 
   const cfg = triageResult ? priorityConfig[triageResult.priorityLevel] || priorityConfig[4] : null;
@@ -285,7 +306,7 @@ export default function PatientIntake({ isDarkMode, setIsDarkMode }) {
                   <div className="flex items-start gap-3">
                     <span className={`material-symbols-outlined ${cfg.text} text-[24px]`}>{cfg.icon}</span>
                     <div className="w-full">
-                      <h3 className={`font-headline-md text-headline-md ${cfg.text} mb-1`}>{triageResult.priorityLabel} Priority</h3>
+                      <h3 className={`font-headline-md text-headline-md ${cfg.text} mb-1`}>{priorityDisplayLabel[triageResult.priorityLevel] || triageResult.priorityLabel} Priority</h3>
                       <p className="font-body-sm text-body-sm text-on-surface dark:text-slate-200 mb-3">{triageResult.justification}</p>
 
                       <div className="space-y-2">
@@ -301,7 +322,7 @@ export default function PatientIntake({ isDarkMode, setIsDarkMode }) {
 
                       <button
                         type="button"
-                        onClick={() => setTriageResult(null)}
+                        onClick={resetForm}
                         className={`mt-4 w-full ${cfg.badgeBg} ${cfg.badgeText} font-data-tabular text-data-tabular py-2 px-4 rounded-DEFAULT hover:opacity-90 transition-colors font-bold uppercase`}
                       >
                         Submit Another Patient
