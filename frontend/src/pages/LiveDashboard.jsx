@@ -31,7 +31,7 @@ export default function LiveDashboard({ isDarkMode, setIsDarkMode }) {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [selectedDepartment, setSelectedDepartment] = useState('All Departments');
-  const [admitting, setAdmitting] = useState(false);
+  const [availableBeds, setAvailableBeds] = useState(BEDS_CAPACITY);
   const [actionLoading, setActionLoading] = useState(null); // 'admit' | 'discharge' | null
   const [toast, setToast] = useState(null); // { message, type }
   const socketRef = useRef(null);
@@ -97,7 +97,9 @@ export default function LiveDashboard({ isDarkMode, setIsDarkMode }) {
   const avgWait = totalPatients > 0
     ? Math.round(filteredPatients.reduce((sum, p) => sum + getWaitMins(p.createdAt), 0) / totalPatients)
     : 0;
-  const bedsAvailable = Math.max(0, BEDS_CAPACITY - patients.length);
+  const handleFreeBed = () => {
+    setAvailableBeds((prev) => Math.min(BEDS_CAPACITY, prev + 1));
+  };
 
   // Unique departments from real data
   const departments = ['All Departments', ...new Set(patients.map((p) => p.aiTriage?.department).filter(Boolean))];
@@ -107,11 +109,12 @@ export default function LiveDashboard({ isDarkMode, setIsDarkMode }) {
     setTimeout(() => setToast(null), 2500);
   };
 
-  const handleAdmit = async () => {
-    if (!selectedPatient) return;
+  const handleAdmitPatient = async () => {
+    if (!selectedPatient || availableBeds === 0) return;
     setActionLoading('admit');
     try {
       await axiosInstance.patch(API_ROUTES.status(selectedPatient._id), { status: 'Admitted' });
+      setAvailableBeds((prev) => Math.max(0, prev - 1));
       showToast('Patient admitted to bed ✓');
       setTimeout(() => {
         setIsDrawerOpen(false);
@@ -125,11 +128,12 @@ export default function LiveDashboard({ isDarkMode, setIsDarkMode }) {
     }
   };
 
-  const handleDischarge = async () => {
+  const handleDischargePatient = async () => {
     if (!selectedPatient) return;
     setActionLoading('discharge');
     try {
       await axiosInstance.patch(API_ROUTES.status(selectedPatient._id), { status: 'Discharged' });
+      // Discharged patients were never assigned a bed, so bed count is unchanged
       showToast('Patient treated & discharged ✓');
       setTimeout(() => {
         setIsDrawerOpen(false);
@@ -233,8 +237,25 @@ export default function LiveDashboard({ isDarkMode, setIsDarkMode }) {
               <span className="font-headline-md text-headline-md text-status-critical-text dark:text-red-500">{criticalCount}</span>
             </div>
             <div className="bg-surface-container-lowest dark:bg-slate-800 border border-border-light dark:border-slate-700 rounded p-3 flex flex-col gap-1">
-              <span className="font-label-caps text-label-caps text-on-surface-variant dark:text-slate-400 uppercase">Beds Available</span>
-              <span className="font-headline-md text-headline-md text-on-surface dark:text-white">{bedsAvailable}</span>
+              <div className="flex items-center justify-between">
+                <span className="font-label-caps text-label-caps text-on-surface-variant dark:text-slate-400 uppercase">Beds Available</span>
+                <button
+                  onClick={handleFreeBed}
+                  disabled={availableBeds >= BEDS_CAPACITY}
+                  title="Simulate a patient leaving — frees one bed"
+                  className="flex items-center gap-0.5 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 disabled:opacity-30 disabled:cursor-not-allowed transition-colors leading-none"
+                >
+                  <span className="material-symbols-outlined text-[13px]">add_circle</span>
+                  Free Bed
+                </button>
+              </div>
+              <span className={`font-headline-md text-headline-md ${
+                availableBeds === 0
+                  ? 'text-status-critical-text dark:text-red-500'
+                  : availableBeds <= 3
+                  ? 'text-status-urgent-text dark:text-orange-400'
+                  : 'text-on-surface dark:text-white'
+              }`}>{availableBeds}</span>
             </div>
             <div className="bg-surface-container-lowest dark:bg-slate-800 border border-border-light dark:border-slate-700 rounded p-3 flex flex-col gap-1">
               <span className="font-label-caps text-label-caps text-on-surface-variant dark:text-slate-400 uppercase">Avg Wait</span>
@@ -430,23 +451,24 @@ export default function LiveDashboard({ isDarkMode, setIsDarkMode }) {
               <div className="p-4 grid grid-cols-2 gap-3">
                 {/* Primary: Admit to Bed */}
                 <button
-                  onClick={handleAdmit}
-                  disabled={actionLoading !== null}
-                  className="bg-primary dark:bg-blue-500 hover:bg-secondary dark:hover:bg-blue-600 disabled:opacity-50 text-on-primary dark:text-white py-3 rounded-lg font-bold transition-colors cursor-pointer flex justify-center items-center gap-1.5 text-sm"
+                  onClick={handleAdmitPatient}
+                  disabled={actionLoading !== null || availableBeds === 0}
+                  title={availableBeds === 0 ? 'No beds available' : 'Admit patient to a hospital bed'}
+                  className="bg-primary dark:bg-blue-500 hover:bg-secondary dark:hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed text-on-primary dark:text-white py-3 rounded-lg font-bold transition-colors cursor-pointer flex justify-center items-center gap-1.5 text-sm"
                 >
                   {actionLoading === 'admit' ? (
                     <span className="material-symbols-outlined text-[16px] animate-spin">progress_activity</span>
                   ) : (
                     <span className="material-symbols-outlined text-[16px]">bed</span>
                   )}
-                  {actionLoading === 'admit' ? 'Admitting…' : 'Admit to Bed'}
+                  {actionLoading === 'admit' ? 'Admitting…' : availableBeds === 0 ? 'No Beds Left' : 'Admit to Bed'}
                 </button>
 
                 {/* Secondary: Treat & Discharge */}
                 <button
-                  onClick={handleDischarge}
+                  onClick={handleDischargePatient}
                   disabled={actionLoading !== null}
-                  className="border-2 border-emerald-600 dark:border-emerald-500 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 disabled:opacity-50 py-3 rounded-lg font-bold transition-colors cursor-pointer flex justify-center items-center gap-1.5 text-sm"
+                  className="border-2 border-emerald-600 dark:border-emerald-500 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 disabled:opacity-50 disabled:cursor-not-allowed py-3 rounded-lg font-bold transition-colors cursor-pointer flex justify-center items-center gap-1.5 text-sm"
                 >
                   {actionLoading === 'discharge' ? (
                     <span className="material-symbols-outlined text-[16px] animate-spin">progress_activity</span>
