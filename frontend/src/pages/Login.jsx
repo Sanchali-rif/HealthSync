@@ -117,13 +117,18 @@ function Login({ isDarkMode, setIsDarkMode }) {
         return;
       }
 
-      // Role confirmed — persist and navigate
+      // Role confirmed — validate it matches the selected toggle
       const returnedRole = response.data.role;
+      if (returnedRole !== capitalizedRole) {
+        setError(`This Google account is registered as a ${returnedRole}. Please select ${returnedRole} role.`);
+        return;
+      }
       localStorage.setItem('hs_token', response.data.token || idToken);
       navigateByRole(returnedRole);
     } catch (err) {
       const backendMsg = err.response?.data?.error;
-      setError(backendMsg || getFriendlyError(err.code));
+      // Show the real error message — fall back to friendly message only for known codes
+      setError(backendMsg || getFriendlyError(err.code) + (err.message ? ` (${err.message})` : ''));
     } finally {
       setLoading(false);
     }
