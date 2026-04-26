@@ -1,20 +1,76 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { auth } from '../config/firebase';
 import { signOut } from 'firebase/auth';
+import { io } from 'socket.io-client';
+import { SOCKET_URL, API_ROUTES } from '../config/api';
 
-const INITIAL_HOSPITALS = [
-  { id: 'h1', name: 'City General', totalBeds: 50, availableBeds: 2, location: 'Downtown Core District', waitTime: '142m' },
-  { id: 'h2', name: 'Northside Medical', totalBeds: 50, availableBeds: 25, location: 'North Heights Sector', waitTime: '45m' },
-  { id: 'h3', name: "St. Jude's", totalBeds: 50, availableBeds: 45, location: 'East Garden District', waitTime: '12m' }
+const INITIAL_LOGS = [
+  { time: '', text: '> SECURE TERMINAL ALPHA-9 [CONNECTED]', type: 'normal' }
 ];
 
 export default function RegionalCommand({ isDarkMode, setIsDarkMode }) {
   const navigate = useNavigate();
   const role = localStorage.getItem('hs_role');
-  const [hospitals, setHospitals] = useState(INITIAL_HOSPITALS);
-  const [logs, setLogs] = useState([]);
+  const [hospitals, setHospitals] = useState([]);
+  const [logs, setLogs] = useState(INITIAL_LOGS);
   const [recommendedHospitalId, setRecommendedHospitalId] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  
+  const terminalRef = useRef(null);
+
+  useEffect(() => {
+    if (terminalRef.current) {
+      terminalRef.current.scrollTop = terminalRef.current.scrollHeight;
+    }
+  }, [logs]);
+
+  const fetchLiveHospitals = async () => {
+    try {
+      const res = await fetch(API_ROUTES.dispatchLive);
+      if (res.ok) {
+        const data = await res.json();
+        setHospitals(data);
+      }
+    } catch (err) {
+      console.error("Failed to fetch live hospitals:", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchLiveHospitals();
+
+    const socket = io(SOCKET_URL);
+
+    socket.on('hospitalUpdated', (updatedHospital) => {
+      setHospitals(prev => prev.map(h => {
+        if (h.name === updatedHospital.name) {
+          return {
+            ...h,
+            availableBeds: updatedHospital.availableBeds,
+            occupiedBeds: updatedHospital.occupiedBeds,
+            capacity: updatedHospital.capacity,
+            occupancyRate: Math.round((updatedHospital.occupiedBeds / updatedHospital.totalBeds) * 100),
+            status: updatedHospital.capacity === 'Critical' ? 'CRITICAL' : updatedHospital.capacity === 'High' ? 'HIGH LOAD' : 'OPERATIONAL'
+          };
+        }
+        return h;
+      }));
+    });
+
+    socket.on('ambulanceDispatched', (data) => {
+      const timeStr = new Date().toLocaleTimeString('en-US', { hour12: false });
+      setLogs(prev => [...prev, {
+        time: `[${timeStr}]`,
+        text: `CONFIRMED: Ambulance en route to ${data.hospitalName}`,
+        type: 'success'
+      }]);
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, []);
 
   const handleLogout = async () => {
     try {
@@ -28,62 +84,130 @@ export default function RegionalCommand({ isDarkMode, setIsDarkMode }) {
     }
   };
 
-  const handleGenerateEmergency = () => {
-    setLogs([
-      { time: '[14:02:11]', text: 'Scanning regional telemetry...', type: 'normal' },
-      { time: '[14:02:12]', text: 'ALERT: City General at capacity threshold.', type: 'alert' },
-      { time: '[14:02:14]', text: 'Recalculating efficient routing paths...', type: 'normal' },
-      { time: '[14:02:15]', text: 'PATH OPTIMIZED: Primary redirect to St. Jude\'s.', type: 'success' },
-    ]);
-    setRecommendedHospitalId('h3');
+  const handleGenerateEmergency = async () => {
+    setIsLoading(true);
+    setLogs(INITIAL_LOGS);
+    setRecommendedHospitalId(null);
+    
+    const incidents = [
+      "Multi-vehicle collision on highway",
+      "Building fire with multiple casualties",
+      "Mass poisoning at public event",
+      "Train derailment with injuries",
+      "Explosion at industrial facility"
+    ];
+    const randomIncident = incidents[Math.floor(Math.random() * incidents.length)];
+
+    try {
+      const res = await fetch(API_ROUTES.dispatchRoute, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          incident: randomIncident,
+          severity: "Critical"
+        })
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        const timeStr = new Date().toLocaleTimeString('en-US', { hour12: false });
+        setLogs(prev => [...prev, { time: `[${timeStr}]`, text: `ERROR: ${data.error}`, type: 'alert' }]);
+        setIsLoading(false);
+        return;
+      }
+
+      for (let i = 0; i < data.terminal_logs.length; i++) {
+        await new Promise(resolve => setTimeout(resolve, 800));
+        setLogs(prev => [...prev, { time: '', text: data.terminal_logs[i], type: 'normal' }]);
+      }
+
+      await new Promise(resolve => setTimeout(resolve, 800));
+      setLogs(prev => [
+        ...prev,
+        { time: '', text: `→ ROUTING TO: ${data.recommendation.hospital_name}`, type: 'success' },
+        { time: '', text: `→ REASON: ${data.recommendation.reason}`, type: 'success' },
+        { time: '', text: `→ ETA: ${data.recommendation.estimated_eta}`, type: 'success' }
+      ]);
+
+      setRecommendedHospitalId(data.recommendation.hospital_name);
+
+    } catch (err) {
+      const timeStr = new Date().toLocaleTimeString('en-US', { hour12: false });
+      setLogs(prev => [...prev, { time: `[${timeStr}]`, text: `ERROR: ${err.message}`, type: 'alert' }]);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleDispatch = () => {
+  const handleDispatch = async () => {
     if (!recommendedHospitalId) return;
 
-    setHospitals(prev => 
-      prev.map(hospital => 
-        hospital.id === recommendedHospitalId && hospital.availableBeds > 0
-          ? { ...hospital, availableBeds: hospital.availableBeds - 1 }
-          : hospital
-      )
-    );
+    try {
+      const res = await fetch(API_ROUTES.dispatchConfirm, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hospitalName: recommendedHospitalId })
+      });
 
-    setLogs(prev => [
-      ...prev, 
-      { time: `[14:${new Date().getMinutes().toString().padStart(2, '0')}:${new Date().getSeconds().toString().padStart(2, '0')}]`, text: 'Ambulance dispatched. Regional bed count updated.', type: 'success' }
-    ]);
-    setRecommendedHospitalId(null);
+      const data = await res.json();
+      const timeStr = new Date().toLocaleTimeString('en-US', { hour12: false });
+
+      if (!res.ok) {
+        setLogs(prev => [...prev, { time: `[${timeStr}]`, text: `✗ DISPATCH FAILED: ${data.error}`, type: 'alert' }]);
+        return;
+      }
+
+      setLogs(prev => [
+        ...prev,
+        { time: `[${timeStr}]`, text: `✓ AMBULANCE DISPATCHED TO: ${recommendedHospitalId}`, type: 'success' },
+        { time: `[${timeStr}]`, text: `BED COUNT UPDATED. REMAINING: ${data.hospital.availableBeds}`, type: 'success' }
+      ]);
+
+      setHospitals(prev => prev.map(h => {
+        if (h.name === recommendedHospitalId) {
+          return {
+            ...h,
+            availableBeds: data.hospital.availableBeds,
+            occupiedBeds: data.hospital.occupiedBeds,
+            capacity: data.hospital.capacity,
+            occupancyRate: data.hospital.occupancyRate,
+            status: data.hospital.capacity === 'Critical' ? 'CRITICAL' : data.hospital.capacity === 'High' ? 'HIGH LOAD' : 'OPERATIONAL'
+          };
+        }
+        return h;
+      }));
+
+      setRecommendedHospitalId(null);
+    } catch (err) {
+      const timeStr = new Date().toLocaleTimeString('en-US', { hour12: false });
+      setLogs(prev => [...prev, { time: `[${timeStr}]`, text: `✗ DISPATCH FAILED: ${err.message}`, type: 'alert' }]);
+    }
   };
 
   const handleReset = () => {
-    setHospitals(INITIAL_HOSPITALS);
-    setLogs([]);
+    setLogs(INITIAL_LOGS);
     setRecommendedHospitalId(null);
+    fetchLiveHospitals();
   };
 
-  const getHospitalStyles = (hospital) => {
-    const isCritical = hospital.availableBeds <= 5;
-    const isModerate = hospital.availableBeds > 5 && hospital.availableBeds <= 25;
-    
-    if (isCritical) {
+  const getHospitalStyles = (capacity) => {
+    if (capacity === 'Critical') {
       return {
         badgeText: 'DIVERTING',
         badgeClass: 'bg-status-critical-bg text-status-critical-text border-red-300 dark:bg-red-900/30 dark:border-red-800 dark:text-red-400',
         borderHover: 'hover:border-error dark:hover:border-red-500',
         valueColor: 'text-status-critical-text dark:text-red-400',
         progressBg: 'bg-error dark:bg-red-500',
-        statusLabel: 'Critical Load',
         statusClass: 'text-status-critical-text dark:text-red-400'
       };
-    } else if (isModerate) {
+    } else if (capacity === 'High' || capacity === 'Moderate') {
       return {
         badgeText: 'ELEVATED',
         badgeClass: 'bg-status-urgent-bg text-status-urgent-text border-orange-200 dark:bg-orange-900/30 dark:border-orange-800 dark:text-orange-400',
         borderHover: 'hover:border-secondary dark:hover:border-orange-500',
         valueColor: 'text-primary dark:text-white',
         progressBg: 'bg-status-urgent-text dark:bg-orange-500',
-        statusLabel: 'Moderate Load',
         statusClass: 'text-status-urgent-text dark:text-orange-400'
       };
     } else {
@@ -93,16 +217,14 @@ export default function RegionalCommand({ isDarkMode, setIsDarkMode }) {
         borderHover: 'hover:border-status-non-urgent-text dark:hover:border-green-500',
         valueColor: 'text-status-non-urgent-text dark:text-green-400',
         progressBg: 'bg-status-non-urgent-text dark:bg-green-500',
-        statusLabel: 'Low Load',
         statusClass: 'text-status-non-urgent-text dark:text-green-400'
       };
     }
   };
 
-  const totalCapacity = Math.round(
-    hospitals.reduce((sum, h) => sum + (h.totalBeds - h.availableBeds), 0) / 
-    hospitals.reduce((sum, h) => sum + h.totalBeds, 0) * 100
-  );
+  const totalOccupied = hospitals.reduce((sum, h) => sum + h.occupiedBeds, 0);
+  const totalBeds = hospitals.reduce((sum, h) => sum + h.totalBeds, 0);
+  const totalCapacity = totalBeds > 0 ? Math.round((totalOccupied / totalBeds) * 100) : 0;
 
   return (
     <div className="bg-background dark:bg-slate-900 text-on-surface dark:text-slate-50 font-body-sm text-body-sm min-h-screen selection:bg-primary selection:text-white">
@@ -236,8 +358,8 @@ export default function RegionalCommand({ isDarkMode, setIsDarkMode }) {
               </div>
 
               {hospitals.map(hospital => {
-                const styles = getHospitalStyles(hospital);
-                const capacityPercent = ((hospital.totalBeds - hospital.availableBeds) / hospital.totalBeds) * 100;
+                const styles = getHospitalStyles(hospital.capacity);
+                const statusText = hospital.status === 'CRITICAL' ? 'CRITICAL LOAD' : hospital.status === 'HIGH LOAD' ? 'MODERATE LOAD' : 'LOW LOAD';
 
                 return (
                   <div 
@@ -247,10 +369,6 @@ export default function RegionalCommand({ isDarkMode, setIsDarkMode }) {
                     <div className="flex justify-between items-start mb-4">
                       <div>
                         <h4 className="font-bold text-lg text-primary dark:text-white">{hospital.name}</h4>
-                        <p className="text-xs text-on-surface-variant dark:text-slate-400 flex items-center gap-1">
-                          <span className="material-symbols-outlined text-[14px]" data-icon="location_on">location_on</span>
-                          {hospital.location}
-                        </p>
                       </div>
                       <span className={`${styles.badgeClass} px-3 py-1 rounded-full text-[10px] font-black tracking-widest uppercase`}>
                         {styles.badgeText}
@@ -260,25 +378,25 @@ export default function RegionalCommand({ isDarkMode, setIsDarkMode }) {
                     <div className="grid grid-cols-3 gap-4 mb-4">
                       <div className="p-2 rounded bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-700">
                         <p className="text-[10px] font-bold text-on-surface-variant dark:text-slate-400 uppercase">Bed Count</p>
-                        <p className={`text-2xl font-black ${styles.valueColor}`}>{hospital.availableBeds}</p>
+                        <p className={`text-2xl font-black ${styles.valueColor} transition-all duration-300`}>{hospital.availableBeds}</p>
                       </div>
                       <div className="p-2 rounded bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-700">
                         <p className="text-[10px] font-bold text-on-surface-variant dark:text-slate-400 uppercase">Wait Time</p>
-                        <p className="text-2xl font-black dark:text-white">{hospital.waitTime}</p>
+                        <p className="text-2xl font-black dark:text-white">{hospital.wait_time_mins}m</p>
                       </div>
                       <div className="p-2 rounded bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-700">
                         <p className="text-[10px] font-bold text-on-surface-variant dark:text-slate-400 uppercase">Status</p>
-                        <p className={`text-xs font-bold uppercase mt-2 ${styles.statusClass}`}>{styles.statusLabel}</p>
+                        <p className={`text-xs font-bold uppercase mt-2 ${styles.statusClass}`}>{statusText}</p>
                       </div>
                     </div>
 
                     <div className="space-y-1">
                       <div className="flex justify-between text-[10px] font-bold uppercase text-on-surface-variant dark:text-slate-400">
                         <span>Utilization</span>
-                        <span>{Math.round(capacityPercent)}%</span>
+                        <span>{hospital.occupancyRate}%</span>
                       </div>
                       <div className="h-2 w-full bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
-                        <div className={`h-full rounded-full transition-all duration-500 ${styles.progressBg}`} style={{ width: `${capacityPercent}%` }}></div>
+                        <div className={`h-full rounded-full transition-all duration-500 ${styles.progressBg}`} style={{ width: `${hospital.occupancyRate}%` }}></div>
                       </div>
                     </div>
                   </div>
@@ -303,23 +421,27 @@ export default function RegionalCommand({ isDarkMode, setIsDarkMode }) {
                 <div className="space-y-4 mb-6">
                   <button 
                     onClick={handleGenerateEmergency}
-                    className="w-full py-3 px-4 bg-white/10 hover:bg-white/15 border border-white/20 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+                    disabled={isLoading}
+                    className="w-full py-3 px-4 bg-white/10 hover:bg-white/15 border border-white/20 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-50"
                   >
-                    <span className="material-symbols-outlined text-[18px]" data-icon="bolt">bolt</span>
-                    Generate Mock Emergency
+                    {isLoading ? (
+                      <span className="material-symbols-outlined animate-spin" data-icon="sync">sync</span>
+                    ) : (
+                      <span className="material-symbols-outlined text-[18px]" data-icon="bolt">bolt</span>
+                    )}
+                    {isLoading ? 'Processing...' : 'Generate Mock Emergency'}
                   </button>
                 </div>
 
                 {/* AI Routing Terminal */}
                 <div className="flex-1 bg-black/50 border border-slate-700 rounded-lg p-4 font-mono text-[11px] overflow-hidden relative flex flex-col">
                   <div className="absolute top-0 left-0 w-full h-1 bg-blue-500/30"></div>
-                  <div className="text-blue-400 mb-2">&gt; SECURE TERMINAL ALPHA-9 [CONNECTED]</div>
                   
-                  <div className="space-y-1 flex-1 overflow-y-auto pb-20">
+                  <div ref={terminalRef} className="space-y-1 flex-1 overflow-y-auto pb-20">
                     {logs.map((log, i) => (
                       <div key={i} className="flex gap-2">
-                        <span className="text-slate-500">{log.time}</span>
-                        <span className={log.type === 'alert' ? 'text-yellow-400' : log.type === 'success' ? 'text-green-400' : 'text-slate-300'}>
+                        {log.time && <span className="text-slate-500">{log.time}</span>}
+                        <span className={log.type === 'alert' ? 'text-red-400' : log.type === 'success' ? 'text-green-400' : 'text-slate-300'}>
                           {log.text}
                         </span>
                       </div>
@@ -337,7 +459,7 @@ export default function RegionalCommand({ isDarkMode, setIsDarkMode }) {
                         </div>
                         <div>
                           <p className="text-[10px] font-bold text-slate-400 uppercase">AI Recommendation</p>
-                          <p className="text-xs font-medium text-slate-100">Redirect incoming Code 3 to St. Jude's (ETA 4.2m)</p>
+                          <p className="text-xs font-medium text-slate-100">Redirect incoming Code 3 to {recommendedHospitalId}</p>
                         </div>
                       </div>
                     </div>
