@@ -32,6 +32,8 @@ export default function LiveDashboard({ isDarkMode, setIsDarkMode }) {
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [selectedDepartment, setSelectedDepartment] = useState('All Departments');
   const [admitting, setAdmitting] = useState(false);
+  const [actionLoading, setActionLoading] = useState(null); // 'admit' | 'discharge' | null
+  const [toast, setToast] = useState(null); // { message, type }
   const socketRef = useRef(null);
 
   const handleLogout = async () => {
@@ -100,16 +102,44 @@ export default function LiveDashboard({ isDarkMode, setIsDarkMode }) {
   // Unique departments from real data
   const departments = ['All Departments', ...new Set(patients.map((p) => p.aiTriage?.department).filter(Boolean))];
 
+  const showToast = (message, type = 'success') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 2500);
+  };
+
   const handleAdmit = async () => {
     if (!selectedPatient) return;
-    setAdmitting(true);
+    setActionLoading('admit');
     try {
       await axiosInstance.patch(API_ROUTES.status(selectedPatient._id), { status: 'Admitted' });
-      // Socket patientRemoved event will update the list automatically
+      showToast('Patient admitted to bed ✓');
+      setTimeout(() => {
+        setIsDrawerOpen(false);
+        setSelectedPatient(null);
+      }, 1200);
     } catch (err) {
       console.error('Failed to admit patient:', err.message);
+      showToast('Failed to admit patient', 'error');
     } finally {
-      setAdmitting(false);
+      setActionLoading(null);
+    }
+  };
+
+  const handleDischarge = async () => {
+    if (!selectedPatient) return;
+    setActionLoading('discharge');
+    try {
+      await axiosInstance.patch(API_ROUTES.status(selectedPatient._id), { status: 'Discharged' });
+      showToast('Patient treated & discharged ✓');
+      setTimeout(() => {
+        setIsDrawerOpen(false);
+        setSelectedPatient(null);
+      }, 1200);
+    } catch (err) {
+      console.error('Failed to discharge patient:', err.message);
+      showToast('Failed to discharge patient', 'error');
+    } finally {
+      setActionLoading(null);
     }
   };
 
@@ -375,15 +405,57 @@ export default function LiveDashboard({ isDarkMode, setIsDarkMode }) {
               </div>
             </div>
 
-            <div className="p-4 border-t border-border-light dark:border-slate-800 bg-surface dark:bg-slate-900">
-              <button
-                onClick={handleAdmit}
-                disabled={admitting}
-                className="w-full bg-primary dark:bg-blue-500 hover:bg-secondary dark:hover:bg-blue-600 disabled:opacity-60 text-on-primary dark:text-black py-3 rounded font-bold transition-colors cursor-pointer flex justify-center items-center gap-2"
+            <div className="border-t border-border-light dark:border-slate-800 bg-surface dark:bg-slate-900">
+              {/* Toast notification */}
+              <div
+                className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                  toast ? 'max-h-14 opacity-100' : 'max-h-0 opacity-0'
+                }`}
               >
-                <span className="material-symbols-outlined text-[18px]">check_circle</span>
-                {admitting ? 'Admitting...' : 'Acknowledge & Admit'}
-              </button>
+                <div
+                  className={`mx-4 mt-3 px-4 py-2 rounded flex items-center gap-2 text-sm font-semibold ${
+                    toast?.type === 'error'
+                      ? 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800'
+                      : 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-[16px]">
+                    {toast?.type === 'error' ? 'error' : 'check_circle'}
+                  </span>
+                  {toast?.message}
+                </div>
+              </div>
+
+              {/* Action buttons */}
+              <div className="p-4 grid grid-cols-2 gap-3">
+                {/* Primary: Admit to Bed */}
+                <button
+                  onClick={handleAdmit}
+                  disabled={actionLoading !== null}
+                  className="bg-primary dark:bg-blue-500 hover:bg-secondary dark:hover:bg-blue-600 disabled:opacity-50 text-on-primary dark:text-white py-3 rounded-lg font-bold transition-colors cursor-pointer flex justify-center items-center gap-1.5 text-sm"
+                >
+                  {actionLoading === 'admit' ? (
+                    <span className="material-symbols-outlined text-[16px] animate-spin">progress_activity</span>
+                  ) : (
+                    <span className="material-symbols-outlined text-[16px]">bed</span>
+                  )}
+                  {actionLoading === 'admit' ? 'Admitting…' : 'Admit to Bed'}
+                </button>
+
+                {/* Secondary: Treat & Discharge */}
+                <button
+                  onClick={handleDischarge}
+                  disabled={actionLoading !== null}
+                  className="border-2 border-emerald-600 dark:border-emerald-500 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 disabled:opacity-50 py-3 rounded-lg font-bold transition-colors cursor-pointer flex justify-center items-center gap-1.5 text-sm"
+                >
+                  {actionLoading === 'discharge' ? (
+                    <span className="material-symbols-outlined text-[16px] animate-spin">progress_activity</span>
+                  ) : (
+                    <span className="material-symbols-outlined text-[16px]">outpatient_med</span>
+                  )}
+                  {actionLoading === 'discharge' ? 'Discharging…' : 'Treat & Discharge'}
+                </button>
+              </div>
             </div>
           </div>
         )}
