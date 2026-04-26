@@ -10,19 +10,39 @@ export default function ForgotPassword({ isDarkMode, setIsDarkMode }) {
   const [success, setSuccess] = useState(false);
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
+    e.preventDefault()
+    setLoading(true)
+    setError(null)
+    setSuccess(false)
 
     try {
-      await axios.post(API_ROUTES.forgotPassword, { email });
-      setSuccess(true);
-    } catch (err) {
-      setError(err.response?.data?.error || 'Something went wrong. Please try again.');
+      const response = await axios.post(
+        "http://localhost:5000/api/auth/forgot-password",
+        { email: email },
+        {
+          headers: {
+            "Content-Type": "application/json"
+          }
+        }
+      )
+
+      if (response.status === 200) {
+        setSuccess(true)
+        setError(null)
+      }
+
+    } catch (error) {
+      console.log("Forgot password error:", error)
+      
+      if (error.response) {
+        setError(error.response.data.error || "Something went wrong. Please try again.")
+      } else {
+        setError("Cannot connect to server. Make sure backend is running.")
+      }
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-white dark:bg-gray-900 transition-colors duration-300">
@@ -55,13 +75,8 @@ export default function ForgotPassword({ isDarkMode, setIsDarkMode }) {
         )}
 
         {success ? (
-          <div className="mb-4 p-4 bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-center rounded-md border border-green-100 dark:border-green-900/50">
-            Reset email sent! Check your inbox.
-            <div className="mt-4">
-              <Link to="/login" className="text-[#0d6efd] dark:text-blue-400 hover:underline">
-                &larr; Back to login
-              </Link>
-            </div>
+          <div style={{ color: "green" }}>
+            Reset email sent! Please check your inbox at {email}
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
