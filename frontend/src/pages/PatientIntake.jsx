@@ -229,11 +229,11 @@ export default function PatientIntake({ isDarkMode, setIsDarkMode }) {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div>
                     <label className="block font-label-caps text-label-caps text-on-surface-variant dark:text-slate-300 mb-1">HR (bpm)</label>
-                    <input ref={hrRef} className="w-full bg-status-urgent-bg dark:bg-[#431407] border border-status-urgent-text border-opacity-30 dark:border-orange-700/50 rounded-DEFAULT px-3 py-2 font-data-tabular text-data-tabular text-status-urgent-text dark:text-orange-400 font-bold focus:outline-none focus:border-primary transition-colors" type="number" defaultValue="115" required />
+                    <input ref={hrRef} className="w-full bg-status-urgent-bg dark:bg-[#431407] border border-status-urgent-text border-opacity-30 dark:border-orange-700/50 rounded-DEFAULT px-3 py-2 font-data-tabular text-data-tabular text-status-urgent-text dark:text-orange-400 font-bold focus:outline-none focus:border-primary transition-colors" type="number" defaultValue="100" required />
                   </div>
                   <div>
                     <label className="block font-label-caps text-label-caps text-on-surface-variant dark:text-slate-300 mb-1">BP (mmHg)</label>
-                    <input ref={bpRef} className="w-full bg-surface-container-low dark:bg-slate-900 border border-outline-variant dark:border-slate-600 rounded-DEFAULT px-3 py-2 font-data-tabular text-data-tabular text-on-surface dark:text-white focus:outline-none focus:border-primary transition-colors" type="text" defaultValue="160/95" required />
+                    <input ref={bpRef} className="w-full bg-surface-container-low dark:bg-slate-900 border border-outline-variant dark:border-slate-600 rounded-DEFAULT px-3 py-2 font-data-tabular text-data-tabular text-on-surface dark:text-white focus:outline-none focus:border-primary transition-colors" type="text" defaultValue="120/80" required />
                   </div>
                   <div>
                     <label className="block font-label-caps text-label-caps text-on-surface-variant dark:text-slate-300 mb-1">Temp (°C)</label>
@@ -241,7 +241,7 @@ export default function PatientIntake({ isDarkMode, setIsDarkMode }) {
                   </div>
                   <div>
                     <label className="block font-label-caps text-label-caps text-on-surface-variant dark:text-slate-300 mb-1">SpO2 (%)</label>
-                    <input ref={spo2Ref} className="w-full bg-surface-container-low dark:bg-slate-900 border border-outline-variant dark:border-slate-600 rounded-DEFAULT px-3 py-2 font-data-tabular text-data-tabular text-on-surface dark:text-white focus:outline-none focus:border-primary transition-colors" type="number" defaultValue="94" required />
+                    <input ref={spo2Ref} className="w-full bg-surface-container-low dark:bg-slate-900 border border-outline-variant dark:border-slate-600 rounded-DEFAULT px-3 py-2 font-data-tabular text-data-tabular text-on-surface dark:text-white focus:outline-none focus:border-primary transition-colors" type="number" defaultValue="95" required />
                   </div>
                 </div>
               </section>
