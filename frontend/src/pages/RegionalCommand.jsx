@@ -285,7 +285,8 @@ export default function RegionalCommand({ isDarkMode, setIsDarkMode }) {
         </div>
       </header>
 
-      {/* SideNavBar */}
+      {/* SideNavBar (Hidden for now) */}
+      {/* 
       <aside className="hidden md:flex fixed left-0 top-14 h-[calc(100vh-3.5rem)] w-64 flex-col p-3 space-y-1 bg-slate-50 dark:bg-slate-950 border-r border-slate-200 dark:border-slate-800">
         <div className="px-3 py-4 mb-2">
           <p className="text-sm font-black text-slate-900 dark:text-slate-50 font-logo uppercase">Dispatch HQ</p>
@@ -324,9 +325,10 @@ export default function RegionalCommand({ isDarkMode, setIsDarkMode }) {
           </a>
         </div>
       </aside>
+      */}
 
       {/* Main Content Canvas */}
-      <main className="md:pl-64 pt-14 min-h-screen">
+      <main className="pt-14 min-h-screen">
         <div className="p-6 max-w-[1400px] mx-auto">
           {/* Header Section */}
           <div className="flex flex-col md:flex-row justify-between md:items-end mb-8 gap-4">
