@@ -10,7 +10,7 @@ const { getIO } = require('../config/socket');
 // POST /triage — register new patient, run AI triage, broadcast to dashboard
 router.post('/triage', verifyFirebaseToken, requireNurse, async (req, res) => {
   try {
-    const { name, age, gender, vitals, complaint, hospitalId } = req.body;
+    const { patientId, name, age, gender, vitals, complaint, hospitalId } = req.body;
 
     const hospitals = await Hospital.find({ isActive: true });
 
@@ -21,6 +21,7 @@ router.post('/triage', verifyFirebaseToken, requireNurse, async (req, res) => {
     );
 
     const newPatient = new Patient({
+      patientId,
       name,
       age,
       gender,

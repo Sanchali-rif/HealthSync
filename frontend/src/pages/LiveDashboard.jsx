@@ -298,6 +298,7 @@ export default function LiveDashboard({ isDarkMode, setIsDarkMode }) {
                           <td className="p-3">
                             <div className="flex flex-col">
                               <span className="text-on-surface dark:text-white font-semibold">{patient.name} ({patient.age})</span>
+                              <span className="text-on-surface-variant dark:text-slate-400 text-xs mt-0.5">ID: {patient.patientId || 'N/A'}</span>
                               <span className="text-on-surface-variant dark:text-slate-400 text-xs mt-0.5">{patient.complaint?.substring(0, 40)}{patient.complaint?.length > 40 ? '...' : ''}</span>
                             </div>
                           </td>
@@ -348,7 +349,7 @@ export default function LiveDashboard({ isDarkMode, setIsDarkMode }) {
             <div className="p-4 flex justify-between items-start bg-surface dark:bg-slate-900 border-b border-border-light dark:border-slate-800">
               <div>
                 <h2 className="text-xl font-bold text-on-surface dark:text-white">{selectedPatient.name}</h2>
-                <p className="text-sm text-on-surface-variant dark:text-slate-400 mt-1">Age: {selectedPatient.age} · {selectedPatient.gender}</p>
+                <p className="text-sm text-on-surface-variant dark:text-slate-400 mt-1">ID: {selectedPatient.patientId || 'N/A'} · Age: {selectedPatient.age} · {selectedPatient.gender}</p>
               </div>
               <button
                 className="p-1 rounded hover:bg-surface-dim text-on-surface-variant dark:text-slate-400 hover:dark:text-white transition-colors cursor-pointer"

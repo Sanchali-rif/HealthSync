@@ -68,6 +68,7 @@ export default function PatientIntake({ isDarkMode, setIsDarkMode }) {
 
   // Refs for form fields
   const nameRef = useRef();
+  const patientIdRef = useRef();
   const ageRef = useRef();
   const genderRef = useRef();
   const arrivalRef = useRef();
@@ -85,6 +86,7 @@ export default function PatientIntake({ isDarkMode, setIsDarkMode }) {
 
     try {
       const payload = {
+        patientId: patientIdRef.current.value,
         name: nameRef.current.value,
         age: Number(ageRef.current.value),
         gender: genderRef.current.value,
@@ -109,15 +111,16 @@ export default function PatientIntake({ isDarkMode, setIsDarkMode }) {
   const resetForm = () => {
     setTriageResult(null);
     setError('');
-    if (nameRef.current)     nameRef.current.value     = 'John Doe';
-    if (ageRef.current)      ageRef.current.value      = '54';
-    if (genderRef.current)   genderRef.current.value   = 'Male';
-    if (arrivalRef.current)  arrivalRef.current.value  = '14:23';
+    if (patientIdRef.current) patientIdRef.current.value = '';
+    if (nameRef.current)     nameRef.current.value     = '';
+    if (ageRef.current)      ageRef.current.value      = '';
+    if (genderRef.current)   genderRef.current.value   = '';
+    if (arrivalRef.current)  arrivalRef.current.value  = '';
     if (hrRef.current)       hrRef.current.value       = '100';
     if (bpRef.current)       bpRef.current.value       = '120/80';
     if (tempRef.current)     tempRef.current.value     = '37.2';
     if (spo2Ref.current)     spo2Ref.current.value     = '95';
-    if (complaintRef.current) complaintRef.current.value = 'Patient complains of severe, crushing chest pain radiating to the left arm and jaw. Started 45 minutes ago. Diaphoretic upon arrival.';
+    if (complaintRef.current) complaintRef.current.value = '';
   };
 
   const cfg = triageResult ? priorityConfig[triageResult.priorityLevel] || priorityConfig[4] : null;
@@ -200,8 +203,15 @@ export default function PatientIntake({ isDarkMode, setIsDarkMode }) {
             <h1 className="font-headline-md text-headline-md text-on-surface">Emergency Room Triage</h1>
             <p className="font-body-sm text-body-sm text-on-surface-variant dark:text-slate-300">Log patient arrival and compute initial severity.</p>
           </div>
-          <div className="font-data-tabular text-data-tabular text-on-surface-variant dark:text-slate-300 bg-surface-container dark:bg-slate-800 px-3 py-1.5 rounded-DEFAULT border border-outline-variant dark:border-slate-700">
-            ID: HS-9938-A
+          <div className="font-data-tabular text-data-tabular text-on-surface-variant dark:text-slate-300 bg-surface-container dark:bg-slate-800 px-3 py-1.5 rounded-DEFAULT border border-outline-variant dark:border-slate-700 flex items-center gap-2 focus-within:ring-1 focus-within:ring-primary focus-within:border-primary transition-colors">
+            <span>ID:</span>
+            <input 
+              ref={patientIdRef} 
+              type="text" 
+              placeholder="_____" 
+              className="bg-transparent border-none outline-none w-24 text-on-surface dark:text-white placeholder-slate-400 font-data-tabular p-0 m-0" 
+              required
+            />
           </div>
         </div>
 
@@ -218,25 +228,26 @@ export default function PatientIntake({ isDarkMode, setIsDarkMode }) {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block font-label-caps text-label-caps text-on-surface-variant dark:text-slate-300 mb-1">Full Name</label>
-                    <input ref={nameRef} className="w-full bg-surface-container-low dark:bg-slate-900 border border-outline-variant dark:border-slate-600 rounded-DEFAULT px-3 py-2 font-data-tabular text-data-tabular text-on-surface dark:text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors" type="text" defaultValue="John Doe" required />
+                    <input ref={nameRef} className="w-full bg-surface-container-low dark:bg-slate-900 border border-outline-variant dark:border-slate-600 rounded-DEFAULT px-3 py-2 font-data-tabular text-data-tabular text-on-surface dark:text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors" type="text" placeholder="Enter full name" required />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block font-label-caps text-label-caps text-on-surface-variant dark:text-slate-300 mb-1">Age</label>
-                      <input ref={ageRef} className="w-full bg-surface-container-low dark:bg-slate-900 border border-outline-variant dark:border-slate-600 rounded-DEFAULT px-3 py-2 font-data-tabular text-data-tabular text-on-surface dark:text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors" type="number" defaultValue="54" required />
+                      <input ref={ageRef} className="w-full bg-surface-container-low dark:bg-slate-900 border border-outline-variant dark:border-slate-600 rounded-DEFAULT px-3 py-2 font-data-tabular text-data-tabular text-on-surface dark:text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors" type="number" placeholder="e.g. 54" required />
                     </div>
                     <div>
                       <label className="block font-label-caps text-label-caps text-on-surface-variant dark:text-slate-300 mb-1">Gender</label>
-                      <select ref={genderRef} className="w-full bg-surface-container-low dark:bg-slate-900 border border-outline-variant dark:border-slate-600 rounded-DEFAULT px-3 py-2 font-data-tabular text-data-tabular text-on-surface dark:text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors appearance-none">
-                        <option>Male</option>
-                        <option>Female</option>
-                        <option>Other</option>
+                      <select ref={genderRef} className="w-full bg-surface-container-low dark:bg-slate-900 border border-outline-variant dark:border-slate-600 rounded-DEFAULT px-3 py-2 font-data-tabular text-data-tabular text-on-surface dark:text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors appearance-none" defaultValue="" required>
+                        <option value="" disabled>Select Gender</option>
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                        <option value="Other">Other</option>
                       </select>
                     </div>
                   </div>
                   <div className="md:col-span-2">
                     <label className="block font-label-caps text-label-caps text-on-surface-variant dark:text-slate-300 mb-1">Arrival Time</label>
-                    <input ref={arrivalRef} className="w-full md:w-1/2 bg-surface-container-low dark:bg-slate-900 border border-outline-variant dark:border-slate-600 rounded-DEFAULT px-3 py-2 font-data-tabular text-data-tabular text-on-surface dark:text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors" type="time" defaultValue="14:23" />
+                    <input ref={arrivalRef} className="w-full md:w-1/2 bg-surface-container-low dark:bg-slate-900 border border-outline-variant dark:border-slate-600 rounded-DEFAULT px-3 py-2 font-data-tabular text-data-tabular text-on-surface dark:text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors" type="time" required />
                   </div>
                 </div>
               </section>
@@ -273,7 +284,7 @@ export default function PatientIntake({ isDarkMode, setIsDarkMode }) {
                   <span className="material-symbols-outlined text-[16px]">description</span>
                   Chief Complaint
                 </h2>
-                <textarea ref={complaintRef} className="w-full bg-surface-container-low dark:bg-slate-900 border border-outline-variant dark:border-slate-600 rounded-DEFAULT px-3 py-2 font-body-sm text-body-sm text-on-surface dark:text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors resize-none" rows="4" defaultValue="Patient complains of severe, crushing chest pain radiating to the left arm and jaw. Started 45 minutes ago. Diaphoretic upon arrival." required></textarea>
+                <textarea ref={complaintRef} className="w-full bg-surface-container-low dark:bg-slate-900 border border-outline-variant dark:border-slate-600 rounded-DEFAULT px-3 py-2 font-body-sm text-body-sm text-on-surface dark:text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors resize-none" rows="4" placeholder="Describe patient symptoms and chief complaint..." required></textarea>
               </section>
 
               {error && (
