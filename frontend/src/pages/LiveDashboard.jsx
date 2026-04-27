@@ -47,6 +47,7 @@ export default function LiveDashboard({ isDarkMode, setIsDarkMode }) {
       localStorage.removeItem('hs_token');
       localStorage.removeItem('hs_refresh');
       localStorage.removeItem('hs_role');
+      localStorage.removeItem('selectedHospitalId');
       await signOut(auth);
       navigate('/login');
     } catch (err) {

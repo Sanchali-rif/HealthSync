@@ -22,9 +22,10 @@ function Login({ isDarkMode, setIsDarkMode }) {
   const getCapitalizedRole = () => (role === 'nurse' ? 'Nurse' : 'Doctor');
 
   // Navigate based on role string returned from backend
+  // Always route through hospital selection first
   const navigateByRole = (returnedRole) => {
     localStorage.setItem('hs_role', returnedRole);
-    navigate(returnedRole === 'Nurse' ? '/intake' : '/dashboard');
+    navigate('/select-hospital');
   };
 
   // ─── Sign In ─────────────────────────────────────────────────────────────────

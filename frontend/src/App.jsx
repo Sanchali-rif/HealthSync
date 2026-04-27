@@ -8,6 +8,7 @@ import Login from './pages/Login';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import RegionalCommand from './pages/RegionalCommand';
+import HospitalSelection from './pages/HospitalSelection';
 
 const NurseRoute = ({ children }) => {
   const token = localStorage.getItem('hs_token');
@@ -82,6 +83,11 @@ function App() {
         <Route path="/login" element={<Login isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} />} />
         <Route path="/forgot-password" element={<ForgotPassword isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} />} />
         <Route path="/reset-password" element={<ResetPassword isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} />} />
+        <Route path="/select-hospital" element={
+          <SharedRoute>
+            <HospitalSelection isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} />
+          </SharedRoute>
+        } />
         <Route path="/intake" element={
           <NurseRoute>
             <PatientIntake isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} />
