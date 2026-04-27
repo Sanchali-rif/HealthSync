@@ -112,6 +112,43 @@ export default function PatientIntake({ isDarkMode, setIsDarkMode }) {
     }
   };
 
+  const handleManualTriage = async (level) => {
+    setError('');
+    setLoading(true);
+    setTriageResult(null);
+
+    try {
+      const payload = {
+        patientId: formData.patientId,
+        name: formData.name,
+        age: Number(formData.age),
+        gender: formData.gender,
+        complaint: formData.complaint,
+        vitals: {
+          hr: Number(formData.hr),
+          bp: formData.bp,
+          temp: Number(formData.temp),
+          spo2: Number(formData.spo2),
+        },
+        manualTriage: {
+          priorityLevel: level,
+          priorityLabel: priorityDisplayLabel[level],
+          department: 'General',
+          justification: 'Manually triaged due to AI system failure',
+          suggestedHospital: null,
+          dispatchReason: 'Manual Override'
+        }
+      };
+
+      const response = await axiosInstance.post(API_ROUTES.triage, payload);
+      setTriageResult(response.data.aiTriage);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to submit manually. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const resetForm = () => {
     setTriageResult(null);
     setError('');
@@ -295,7 +332,32 @@ export default function PatientIntake({ isDarkMode, setIsDarkMode }) {
               </section>
 
               {error && (
-                <p className="text-red-500 text-sm bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-DEFAULT px-4 py-2">{error}</p>
+                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-DEFAULT px-4 py-3">
+                  <p className="text-red-700 dark:text-red-400 text-sm mb-3">{error}</p>
+                  <p className="text-sm text-red-600 dark:text-red-300 mb-2 font-medium">Triage patient manually:</p>
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      { level: 1, label: 'Critical' },
+                      { level: 2, label: 'Urgent' },
+                      { level: 3, label: 'Moderate' },
+                      { level: 4, label: 'Non-Urgent' }
+                    ].map(btn => (
+                      <button
+                        key={btn.level}
+                        type="button"
+                        onClick={() => handleManualTriage(btn.level)}
+                        className={`text-xs px-3 py-1.5 rounded border transition-colors ${
+                          btn.level === 1 ? 'border-red-500 text-red-700 hover:bg-red-100 dark:border-red-600 dark:text-red-400 dark:hover:bg-red-900/50' :
+                          btn.level === 2 ? 'border-orange-500 text-orange-700 hover:bg-orange-100 dark:border-orange-600 dark:text-orange-400 dark:hover:bg-orange-900/50' :
+                          btn.level === 3 ? 'border-blue-500 text-blue-700 hover:bg-blue-100 dark:border-blue-600 dark:text-blue-400 dark:hover:bg-blue-900/50' :
+                          'border-green-500 text-green-700 hover:bg-green-100 dark:border-green-600 dark:text-green-400 dark:hover:bg-green-900/50'
+                        }`}
+                      >
+                        Level {btn.level} - {btn.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               )}
 
               <button

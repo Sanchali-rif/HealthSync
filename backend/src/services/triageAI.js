@@ -88,7 +88,38 @@ const getAITriage = async (patientData, hospitals = []) => {
 
     return parsed;
   } catch (error) {
-    throw new Error('AI Triage Failed: ' + error.message);
+    console.warn('AI Triage Failed, applying fallback rules:', error.message);
+
+    let priorityLevel = 3;
+    let priorityLabel = "Priority";
+    let department = "General OPD";
+
+    // Simple safety fallback rules based on vitals
+    const hr = parseInt(patientData.vitals?.hr) || 80;
+    const sysBp = parseInt((patientData.vitals?.bp || '120/80').split('/')[0]) || 120;
+    const spo2 = parseInt(patientData.vitals?.spo2) || 98;
+
+    if (hr > 130 || hr < 50 || sysBp > 180 || sysBp < 90 || spo2 < 90) {
+      priorityLevel = 1;
+      priorityLabel = "Critical";
+      department = "Emergency";
+    } else if (hr > 110 || sysBp > 160 || spo2 < 95) {
+      priorityLevel = 2;
+      priorityLabel = "Urgent";
+      department = "Emergency";
+    }
+
+    const fallbackHospital = hospitals.find(h => h.availableBeds > 0)?.name || 
+                             (hospitals.length > 0 ? hospitals[0].name : "Unassigned");
+
+    return {
+      priorityLevel,
+      priorityLabel,
+      department,
+      justification: "AI Service Unavailable (503). Triage assigned via automated safety fallback rules based on vitals.",
+      suggestedHospital: fallbackHospital,
+      dispatchReason: "Assigned automatically due to system fallback."
+    };
   }
 };
 

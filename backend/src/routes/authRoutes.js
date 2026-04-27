@@ -1,6 +1,7 @@
 const express = require('express')
 const router = express.Router()
 const authController = require('../controllers/authController')
+const { verifyFirebaseToken } = require('../middleware/authMiddleware')
 
 // POST /api/auth/register — create new user with role
 router.post('/register', authController.createUser)
@@ -22,5 +23,11 @@ router.post('/forgot-password', authController.forgotPassword)
 
 // POST /api/auth/reset-password - reset password using oobCode
 router.post('/reset-password', authController.resetPassword)
+
+// POST /api/auth/select-hospital - select hospital
+router.post('/select-hospital', verifyFirebaseToken, authController.selectHospital)
+
+// GET /api/auth/me - get me
+router.get('/me', verifyFirebaseToken, authController.getMe)
 
 module.exports = router

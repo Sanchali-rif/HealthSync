@@ -42,6 +42,21 @@ const PatientSchema = new mongoose.Schema({
     type: String,
     default: null
   },
+  notes: [
+    {
+       text: { type: String, required: true },
+       addedBy: { type: String },
+       timestamp: { type: Date, default: Date.now }
+    }
+  ],
+  timeline: [
+    {
+      status: { type: String },
+      timestamp: { type: Date, default: Date.now },
+      updatedBy: { type: String },
+      note: { type: String, default: '' }
+    }
+  ],
   createdAt: {
     type: Date,
     default: Date.now,

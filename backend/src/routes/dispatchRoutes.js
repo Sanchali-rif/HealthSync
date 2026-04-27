@@ -80,17 +80,6 @@ router.post('/route', async (req, res) => {
       hospitalData
     )
 
-    console.log("=== DISPATCH RECOMMENDATION ===")
-    console.log("Incident:", incident)
-    console.log("Severity:", severity)
-    console.log("Recommended:", 
-      result.recommendation.hospital_name)
-    console.log("Reason:", 
-      result.recommendation.reason)
-    console.log("ETA:", 
-      result.recommendation.estimated_eta)
-    console.log("===============================")
-
     getIO().emit('dispatchRecommendation', result)
 
     return res.status(200).json({
@@ -102,7 +91,7 @@ router.post('/route', async (req, res) => {
     })
 
   } catch (error) {
-    console.log("Dispatch route error:", error.message)
+    console.error("Dispatch route error:", error.message)
     return res.status(500).json({ 
       error: error.message 
     })
@@ -158,11 +147,6 @@ router.post('/dispatch', async (req, res) => {
       dispatchedAt: new Date()
     })
 
-    console.log("🚑 Ambulance dispatched to:", 
-      hospitalName)
-    console.log("Remaining beds:", 
-      updated.availableBeds)
-
     return res.status(200).json({
       success: true,
       message: "Ambulance dispatched to " 
@@ -177,7 +161,7 @@ router.post('/dispatch', async (req, res) => {
     })
 
   } catch (error) {
-    console.log("Dispatch confirm error:", 
+    console.error("Dispatch confirm error:", 
       error.message)
     return res.status(500).json({ 
       error: error.message 

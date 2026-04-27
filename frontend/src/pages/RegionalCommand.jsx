@@ -378,15 +378,17 @@ export default function RegionalCommand({ isDarkMode, setIsDarkMode }) {
                     </div>
 
                     <div className="grid grid-cols-3 gap-4 mb-4">
-                      <div className="p-2 rounded bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-700">
-                        <p className="text-[10px] font-bold text-on-surface-variant dark:text-slate-400 uppercase">Bed Count</p>
-                        <p className={`text-2xl font-black ${styles.valueColor} transition-all duration-300`}>{hospital.availableBeds}</p>
-                      </div>
-                      <div className="p-2 rounded bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-700">
+                        <div className="col-span-3 lg:col-span-1 p-2 rounded bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-700">
+                          <p className="text-[10px] font-bold text-on-surface-variant dark:text-slate-400 uppercase">Bed Count</p>
+                          <p className={`text-2xl font-black ${styles.valueColor} transition-all duration-300`}>
+                            {hospital.availableBeds <= 0 ? <span className="text-sm italic text-status-critical-text dark:text-red-500 font-normal">0 - Sorry, no bed available</span> : hospital.availableBeds}
+                          </p>
+                        </div>
+                        <div className="col-span-3 lg:col-span-1 p-2 rounded bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-700">
                         <p className="text-[10px] font-bold text-on-surface-variant dark:text-slate-400 uppercase">Wait Time</p>
                         <p className="text-2xl font-black dark:text-white">{hospital.wait_time_mins}m</p>
                       </div>
-                      <div className="p-2 rounded bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-700">
+                        <div className="col-span-3 lg:col-span-1 p-2 rounded bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-700">
                         <p className="text-[10px] font-bold text-on-surface-variant dark:text-slate-400 uppercase">Status</p>
                         <p className={`text-xs font-bold uppercase mt-2 ${styles.statusClass}`}>{statusText}</p>
                       </div>

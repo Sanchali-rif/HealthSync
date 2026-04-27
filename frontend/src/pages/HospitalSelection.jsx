@@ -1,32 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-
-const hospitals = [
-  {
-    id: 'h1',
-    name: 'City General',
-    district: 'Downtown Core District',
-    status: 'Critical',
-    beds: 42,
-    icon: 'local_hospital',
-  },
-  {
-    id: 'h2',
-    name: 'Northside Medical',
-    district: 'North Heights Sector',
-    status: 'Moderate',
-    beds: 18,
-    icon: 'emergency',
-  },
-  {
-    id: 'h3',
-    name: "St. Jude's",
-    district: 'East Garden District',
-    status: 'Normal',
-    beds: 31,
-    icon: 'medical_services',
-  },
-];
+import axiosInstance from '../utils/axiosInstance';
+import { auth } from '../config/firebase';
 
 const STATUS_CONFIG = {
   Critical: {
@@ -35,11 +10,23 @@ const STATUS_CONFIG = {
     ring: 'hover:border-red-400 dark:hover:border-red-600',
     glow: 'hover:shadow-red-100 dark:hover:shadow-red-900/30',
   },
-  Moderate: {
+  High: {
     badge: 'bg-orange-100 dark:bg-orange-900/40 text-orange-600 dark:text-orange-400',
     dot: 'bg-orange-500',
     ring: 'hover:border-orange-400 dark:hover:border-orange-600',
     glow: 'hover:shadow-orange-100 dark:hover:shadow-orange-900/30',
+  },
+  Moderate: {
+    badge: 'bg-yellow-100 dark:bg-yellow-900/40 text-yellow-600 dark:text-yellow-400',
+    dot: 'bg-yellow-500',
+    ring: 'hover:border-yellow-400 dark:hover:border-yellow-600',
+    glow: 'hover:shadow-yellow-100 dark:hover:shadow-yellow-900/30',
+  },
+  Low: {
+    badge: 'bg-green-100 dark:bg-green-900/40 text-green-600 dark:text-green-400',
+    dot: 'bg-green-500',
+    ring: 'hover:border-green-400 dark:hover:border-green-600',
+    glow: 'hover:shadow-green-100 dark:hover:shadow-green-900/30',
   },
   Normal: {
     badge: 'bg-green-100 dark:bg-green-900/40 text-green-600 dark:text-green-400',
@@ -52,21 +39,50 @@ const STATUS_CONFIG = {
 export default function HospitalSelection({ isDarkMode, setIsDarkMode }) {
   const navigate = useNavigate();
   const [selecting, setSelecting] = useState(null);
+  const [hospitals, setHospitals] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   const userRole = localStorage.getItem('hs_role') || 'Doctor';
 
-  const handleSelectHospital = (hospitalId) => {
-    setSelecting(hospitalId);
-    localStorage.setItem('selectedHospitalId', hospitalId);
-
-    // Short delay for the ripple / selection animation to feel snappy
-    setTimeout(() => {
-      if (userRole === 'Nurse') {
-        navigate('/intake');
-      } else {
-        navigate('/dashboard');
+  useEffect(() => {
+    const fetchHospitals = async () => {
+      try {
+        const res = await axiosInstance.get('/api/hospitals');
+        setHospitals(res.data);
+      } catch (err) {
+        console.error("Failed to fetch hospitals:", err);
+      } finally {
+        setLoading(false);
       }
-    }, 250);
+    };
+    fetchHospitals();
+  }, []);
+
+  const handleSelectHospital = async (hospitalId) => {
+    setSelecting(hospitalId);
+    
+    try {
+      await axiosInstance.post('/api/auth/select-hospital', { hospitalId });
+      
+      if (auth.currentUser) {
+        const token = await auth.currentUser.getIdToken(true);
+        localStorage.setItem('hs_token', token);
+      }
+      
+      localStorage.setItem('selectedHospitalId', hospitalId);
+      
+      setTimeout(() => {
+        if (userRole === 'Nurse') {
+          navigate('/intake');
+        } else {
+          navigate('/dashboard');
+        }
+      }, 250);
+
+    } catch (err) {
+      console.error("Failed to select hospital:", err);
+      setSelecting(null);
+    }
   };
 
   return (
@@ -129,90 +145,101 @@ export default function HospitalSelection({ isDarkMode, setIsDarkMode }) {
 
         {/* ── Hospital cards ───────────────────────────────────── */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 w-full max-w-4xl">
-          {hospitals.map((hospital) => {
-            const cfg = STATUS_CONFIG[hospital.status];
-            const isLoading = selecting === hospital.id;
+          {loading ? (
+            <div className="col-span-full text-center text-slate-500">Loading facilities...</div>
+          ) : (
+            hospitals.map((hospital) => {
+              const cfg = STATUS_CONFIG[hospital.capacity] || STATUS_CONFIG.Normal;
+              const isLoading = selecting === hospital._id;
+              
+              const iconMap = {
+                'City General Hospital': 'local_hospital',
+                'Northside Clinic': 'emergency',
+                "St. Jude's Medical Institute": 'medical_services'
+              };
+              const iconName = iconMap[hospital.name] || 'local_hospital';
 
-            return (
-              <button
-                key={hospital.id}
-                id={`hospital-card-${hospital.id}`}
-                onClick={() => handleSelectHospital(hospital.id)}
-                disabled={!!selecting}
-                className={[
-                  'group relative flex flex-col text-left p-6 rounded-2xl border transition-all duration-200',
-                  'bg-white dark:bg-gray-800',
-                  'border-gray-200 dark:border-gray-700',
-                  cfg.ring,
-                  'hover:-translate-y-1 hover:shadow-xl',
-                  cfg.glow,
-                  'focus:outline-none focus:ring-2 focus:ring-[#0d6efd]/50',
-                  'disabled:opacity-60 disabled:cursor-not-allowed disabled:translate-y-0',
-                  isLoading ? 'scale-[0.98] opacity-80' : '',
-                ].join(' ')}
-              >
-                {/* Icon + status */}
-                <div className="flex items-start justify-between mb-4">
-                  <div className="w-11 h-11 rounded-xl bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center">
-                    <span
-                      className="material-symbols-outlined text-[#0d6efd] text-[22px]"
-                      style={{ fontVariationSettings: "'FILL' 1" }}
-                    >
-                      {hospital.icon}
+              return (
+                <button
+                  key={hospital._id}
+                  id={`hospital-card-${hospital._id}`}
+                  onClick={() => handleSelectHospital(hospital._id)}
+                  disabled={!!selecting}
+                  className={[
+                    'group relative flex flex-col text-left p-6 rounded-2xl border transition-all duration-200',
+                    'bg-white dark:bg-gray-800',
+                    'border-gray-200 dark:border-gray-700',
+                    cfg.ring,
+                    'hover:-translate-y-1 hover:shadow-xl',
+                    cfg.glow,
+                    'focus:outline-none focus:ring-2 focus:ring-[#0d6efd]/50',
+                    'disabled:opacity-60 disabled:cursor-not-allowed disabled:translate-y-0',
+                    isLoading ? 'scale-[0.98] opacity-80' : '',
+                  ].join(' ')}
+                >
+                  {/* Icon + status */}
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="w-11 h-11 rounded-xl bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center">
+                      <span
+                        className="material-symbols-outlined text-[#0d6efd] text-[22px]"
+                        style={{ fontVariationSettings: "'FILL' 1" }}
+                      >
+                        {iconName}
+                      </span>
+                    </div>
+
+                    <span className={`flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full ${cfg.badge}`}>
+                      <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot} animate-pulse`} />
+                      {hospital.capacity}
                     </span>
                   </div>
 
-                  <span className={`flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full ${cfg.badge}`}>
-                    <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot} animate-pulse`} />
-                    {hospital.status}
-                  </span>
-                </div>
+                  {/* Name & district */}
+                  <h2 className="text-lg font-bold text-slate-900 dark:text-white mb-1 group-hover:text-[#0d6efd] transition-colors">
+                    {hospital.name}
+                  </h2>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mb-5">
+                    📍 {hospital.location?.city || hospital.location?.address || 'Unknown'}
+                  </p>
 
-                {/* Name & district */}
-                <h2 className="text-lg font-bold text-slate-900 dark:text-white mb-1 group-hover:text-[#0d6efd] transition-colors">
-                  {hospital.name}
-                </h2>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mb-5">
-                  📍 {hospital.district}
-                </p>
+                  {/* Beds available */}
+                  <div className="mt-auto flex items-center justify-between">
+                    <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                      {hospital.availableBeds} beds available
+                    </span>
 
-                {/* Beds available */}
-                <div className="mt-auto flex items-center justify-between">
-                  <span className="text-xs text-slate-400 dark:text-slate-500">
-                    {hospital.beds} beds available
-                  </span>
+                    {/* CTA */}
+                    <span className={[
+                      'inline-flex items-center gap-1 text-xs font-semibold text-[#0d6efd] transition-all',
+                      'group-hover:gap-2',
+                    ].join(' ')}>
+                      {isLoading ? (
+                        <>
+                          <span className="material-symbols-outlined text-sm animate-spin">
+                            progress_activity
+                          </span>
+                          Connecting…
+                        </>
+                      ) : (
+                        <>
+                          Connect
+                          <span className="material-symbols-outlined text-sm">arrow_forward</span>
+                        </>
+                      )}
+                    </span>
+                  </div>
 
-                  {/* CTA */}
-                  <span className={[
-                    'inline-flex items-center gap-1 text-xs font-semibold text-[#0d6efd] transition-all',
-                    'group-hover:gap-2',
-                  ].join(' ')}>
-                    {isLoading ? (
-                      <>
-                        <span className="material-symbols-outlined text-sm animate-spin">
-                          progress_activity
-                        </span>
-                        Connecting…
-                      </>
-                    ) : (
-                      <>
-                        Connect
-                        <span className="material-symbols-outlined text-sm">arrow_forward</span>
-                      </>
-                    )}
-                  </span>
-                </div>
-
-                {/* Subtle bottom-border accent on hover */}
-                <span className="absolute bottom-0 left-6 right-6 h-0.5 rounded-full bg-[#0d6efd]/0 group-hover:bg-[#0d6efd]/40 transition-all duration-300" />
-              </button>
-            );
-          })}
+                  {/* Subtle bottom-border accent on hover */}
+                  <span className="absolute bottom-0 left-6 right-6 h-0.5 rounded-full bg-[#0d6efd]/0 group-hover:bg-[#0d6efd]/40 transition-all duration-300" />
+                </button>
+              );
+            })
+          )}
         </div>
 
         {/* ── Footer note ─────────────────────────────────────── */}
         <p className="mt-10 text-xs text-slate-400 dark:text-slate-600 text-center max-w-sm">
-          Your selection is stored locally for this session. You can switch facilities by logging
+          Your selection is securely bound to your session. You can switch facilities by logging
           out and signing back in.
         </p>
       </main>

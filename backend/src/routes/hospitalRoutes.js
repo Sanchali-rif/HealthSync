@@ -60,21 +60,10 @@ router.post('/', verifyFirebaseToken, async (req, res) => {
 // Route 4 - Update beds
 router.patch('/:id/beds', verifyFirebaseToken, async (req, res) => {
   try {
-    console.log("=== BED UPDATE REQUEST ===")
-    console.log("Hospital ID:", req.params.id)
-    console.log("Action:", req.body.action)
-
     const { action } = req.body
     const hospital = await Hospital.findById(
       req.params.id
     )
-
-    console.log("Hospital found:", 
-      hospital ? hospital.name : "NOT FOUND")
-    console.log("Current available beds:", 
-      hospital?.availableBeds)
-    console.log("Current occupied beds:", 
-      hospital?.occupiedBeds)
 
     if (!hospital) {
       return res.status(404).json({ 
@@ -99,11 +88,6 @@ router.patch('/:id/beds', verifyFirebaseToken, async (req, res) => {
       })
     }
 
-    console.log("New available beds:", 
-      hospital.availableBeds)
-    console.log("New occupied beds:", 
-      hospital.occupiedBeds)
-
     const occupancyRate = 
       (hospital.occupiedBeds / hospital.totalBeds) * 100
     
@@ -117,17 +101,13 @@ router.patch('/:id/beds', verifyFirebaseToken, async (req, res) => {
       hospital.capacity = 'Low'
 
     const updatedHospital = await hospital.save()
-    
-    console.log("Saved successfully:", 
-      updatedHospital.availableBeds)
-    console.log("==========================")
 
     getIO().emit('hospitalUpdated', updatedHospital)
 
     return res.status(200).json(updatedHospital)
 
   } catch (error) {
-    console.log("BED UPDATE ERROR:", error.message)
+    console.error("BED UPDATE ERROR:", error.message)
     return res.status(500).json({ 
       error: error.message 
     })
