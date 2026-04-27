@@ -9,6 +9,32 @@ import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import RegionalCommand from './pages/RegionalCommand';
 
+const NurseRoute = ({ children }) => {
+  const token = localStorage.getItem('hs_token');
+  const role  = localStorage.getItem('hs_role');
+  if (!token) return <Navigate to="/login" replace />;
+  if (role === 'Doctor') return <Navigate to="/dashboard" replace />;
+  if (role === 'Nurse') return children;
+  return <Navigate to="/login" replace />;
+};
+
+const DoctorRoute = ({ children }) => {
+  const token = localStorage.getItem('hs_token');
+  const role  = localStorage.getItem('hs_role');
+  if (!token) return <Navigate to="/login" replace />;
+  if (role === 'Nurse') return <Navigate to="/intake" replace />;
+  if (role === 'Doctor') return children;
+  return <Navigate to="/login" replace />;
+};
+
+const SharedRoute = ({ children }) => {
+  const token = localStorage.getItem('hs_token');
+  const role  = localStorage.getItem('hs_role');
+  if (!token) return <Navigate to="/login" replace />;
+  if (role === 'Doctor' || role === 'Nurse') return children;
+  return <Navigate to="/login" replace />;
+};
+
 function App() {
   const [authChecked, setAuthChecked] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(() => {
@@ -49,32 +75,6 @@ function App() {
       </div>
     );
   }
-
-  const NurseRoute = ({ children }) => {
-    const token = localStorage.getItem('hs_token');
-    const role  = localStorage.getItem('hs_role');
-    if (!token) return <Navigate to="/login" replace />;
-    if (role === 'Doctor') return <Navigate to="/dashboard" replace />;
-    if (role === 'Nurse') return children;
-    return <Navigate to="/login" replace />;
-  };
-
-  const DoctorRoute = ({ children }) => {
-    const token = localStorage.getItem('hs_token');
-    const role  = localStorage.getItem('hs_role');
-    if (!token) return <Navigate to="/login" replace />;
-    if (role === 'Nurse') return <Navigate to="/intake" replace />;
-    if (role === 'Doctor') return children;
-    return <Navigate to="/login" replace />;
-  };
-
-  const SharedRoute = ({ children }) => {
-    const token = localStorage.getItem('hs_token');
-    const role  = localStorage.getItem('hs_role');
-    if (!token) return <Navigate to="/login" replace />;
-    if (role === 'Doctor' || role === 'Nurse') return children;
-    return <Navigate to="/login" replace />;
-  };
 
   return (
     <Router>

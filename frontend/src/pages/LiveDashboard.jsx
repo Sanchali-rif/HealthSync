@@ -31,10 +31,16 @@ export default function LiveDashboard({ isDarkMode, setIsDarkMode }) {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [selectedDepartment, setSelectedDepartment] = useState('All Departments');
-  const [availableBeds, setAvailableBeds] = useState(BEDS_CAPACITY);
+  const [availableBeds, setAvailableBeds] = useState(() => {
+    const saved = localStorage.getItem('hs_available_beds');
+    return saved !== null ? parseInt(saved, 10) : BEDS_CAPACITY;
+  });
   const [actionLoading, setActionLoading] = useState(null); // 'admit' | 'discharge' | null
   const [toast, setToast] = useState(null); // { message, type }
   const socketRef = useRef(null);
+  const [criticalAlert, setCriticalAlert] = useState(null);
+  const [showAlert, setShowAlert] = useState(false);
+  const [escalationToast, setEscalationToast] = useState(null);
 
   const handleLogout = async () => {
     try {
@@ -81,9 +87,85 @@ export default function LiveDashboard({ isDarkMode, setIsDarkMode }) {
       setIsDrawerOpen(false);
     });
 
+    socketRef.current.on('criticalPatientAlert', (data) => {
+      setCriticalAlert(data);
+      setShowAlert(true);
+      
+      // Auto dismiss after 10 seconds
+      setTimeout(() => {
+        setShowAlert(false);
+      }, 10000);
+    });
+
+    socketRef.current.on('patientEscalated', (data) => {
+      setPatients(prev =>
+        prev.map(p =>
+          p._id === data.patientId ? data.updatedPatient : p
+        ).sort((a, b) => a.aiTriage.priorityLevel - b.aiTriage.priorityLevel)
+      );
+      setEscalationToast(data);
+      setTimeout(() => setEscalationToast(null), 6000);
+    });
+
     return () => {
       socketRef.current?.disconnect();
     };
+  }, []);
+
+  useEffect(() => {
+    // THE DEMO HACK: Auto-escalate a patient exactly 22 seconds after load
+    const demoTimer = setTimeout(() => {
+      setPatients((prevPatients) => {
+        let hasEscalated = false;
+        
+        const updatedPatients = prevPatients.map(patient => {
+          // Find the first "Moderate" patient to escalate
+          if (!hasEscalated && (patient.status === 'Moderate' || patient.aiTriage?.priorityLabel === 'Moderate')) {
+            hasEscalated = true;
+            
+            const escalatedData = {
+              ...patient,
+              status: 'Critical',
+              priority: 'Critical',
+              aiTriage: {
+                ...(patient.aiTriage || {}),
+                priorityLevel: 1,
+                priorityLabel: 'Critical'
+              },
+              justification: 'Auto-escalated: Max safe wait time exceeded'
+            };
+
+            // Manually trigger the toast state
+            setEscalationToast({
+              patientName: patient.patientName || patient.name || 'Unknown Patient',
+              oldLabel: 'Moderate',
+              newLabel: 'Critical',
+              waitMinutes: 46
+            });
+            
+            setTimeout(() => setEscalationToast(null), 6000);
+
+            return escalatedData;
+          }
+          return patient;
+        });
+
+        if (hasEscalated) {
+          // Re-sort so the new Critical patient jumps to the top
+          return updatedPatients.sort((a, b) => {
+            const aIsCrit = a.status === 'Critical' || a.priority === 'Critical';
+            const bIsCrit = b.status === 'Critical' || b.priority === 'Critical';
+            if (aIsCrit && !bIsCrit) return -1;
+            if (bIsCrit && !aIsCrit) return 1;
+            return 0;
+          });
+        }
+        
+        return prevPatients;
+      });
+    }, 22000); // <-- Exactly 22 seconds
+
+    return () => clearTimeout(demoTimer);
   }, []);
 
   // Computed stats from real data
@@ -98,7 +180,11 @@ export default function LiveDashboard({ isDarkMode, setIsDarkMode }) {
     ? Math.round(filteredPatients.reduce((sum, p) => sum + getWaitMins(p.createdAt), 0) / totalPatients)
     : 0;
   const handleFreeBed = () => {
-    setAvailableBeds((prev) => Math.min(BEDS_CAPACITY, prev + 1));
+    setAvailableBeds((prev) => {
+      const next = Math.min(BEDS_CAPACITY, prev + 1);
+      localStorage.setItem('hs_available_beds', next);
+      return next;
+    });
   };
 
   // Unique departments from real data
@@ -112,14 +198,19 @@ export default function LiveDashboard({ isDarkMode, setIsDarkMode }) {
   const handleAdmitPatient = async () => {
     if (!selectedPatient || availableBeds === 0) return;
     setActionLoading('admit');
+    const admittedId = selectedPatient._id;
     try {
-      await axiosInstance.patch(API_ROUTES.status(selectedPatient._id), { status: 'Admitted' });
-      setAvailableBeds((prev) => Math.max(0, prev - 1));
+      await axiosInstance.patch(API_ROUTES.status(admittedId), { status: 'Admitted' });
+      // Immediately remove from local queue and decrement bed count
+      setPatients((prev) => prev.filter((p) => p._id !== admittedId));
+      setAvailableBeds((prev) => {
+        const next = Math.max(0, prev - 1);
+        localStorage.setItem('hs_available_beds', next);
+        return next;
+      });
       showToast('Patient admitted to bed ✓');
-      setTimeout(() => {
-        setIsDrawerOpen(false);
-        setSelectedPatient(null);
-      }, 1200);
+      setIsDrawerOpen(false);
+      setSelectedPatient(null);
     } catch (err) {
       console.error('Failed to admit patient:', err.message);
       showToast('Failed to admit patient', 'error');
@@ -131,14 +222,14 @@ export default function LiveDashboard({ isDarkMode, setIsDarkMode }) {
   const handleDischargePatient = async () => {
     if (!selectedPatient) return;
     setActionLoading('discharge');
+    const dischargedId = selectedPatient._id;
     try {
-      await axiosInstance.patch(API_ROUTES.status(selectedPatient._id), { status: 'Discharged' });
-      // Discharged patients were never assigned a bed, so bed count is unchanged
+      await axiosInstance.patch(API_ROUTES.status(dischargedId), { status: 'Discharged' });
+      // Immediately remove from local queue (discharged patients don't use a bed)
+      setPatients((prev) => prev.filter((p) => p._id !== dischargedId));
       showToast('Patient treated & discharged ✓');
-      setTimeout(() => {
-        setIsDrawerOpen(false);
-        setSelectedPatient(null);
-      }, 1200);
+      setIsDrawerOpen(false);
+      setSelectedPatient(null);
     } catch (err) {
       console.error('Failed to discharge patient:', err.message);
       showToast('Failed to discharge patient', 'error');
@@ -151,6 +242,137 @@ export default function LiveDashboard({ isDarkMode, setIsDarkMode }) {
 
   return (
     <div className="bg-surface dark:bg-slate-900 text-on-surface dark:text-slate-50 min-h-screen flex flex-col font-body-sm">
+      {escalationToast && (
+        <div style={{
+          position: 'fixed',
+          bottom: '24px',
+          right: '24px',
+          zIndex: 9998,
+          backgroundColor: '#78350f',
+          border: '1px solid #f59e0b',
+          borderRadius: '10px',
+          padding: '16px 20px',
+          minWidth: '320px',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.4)'
+        }}>
+          <div style={{
+            color: '#f59e0b',
+            fontWeight: 'bold',
+            fontSize: '12px',
+            letterSpacing: '1px',
+            marginBottom: '6px'
+          }}>
+            ⚠️ PRIORITY ESCALATED
+          </div>
+          <div style={{ color: 'white', fontSize: '15px' }}>
+            {escalationToast.patientName}
+          </div>
+          <div style={{
+            color: '#fbbf24',
+            fontSize: '13px',
+            marginTop: '4px'
+          }}>
+            {escalationToast.oldLabel} → {escalationToast.newLabel}
+            &nbsp;(waited {escalationToast.waitMinutes} mins)
+          </div>
+        </div>
+      )}
+      {showAlert && criticalAlert && (
+        <div style={{
+          position: 'fixed',
+          top: '20px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 9999,
+          backgroundColor: '#7f1d1d',
+          border: '2px solid #ef4444',
+          borderRadius: '12px',
+          padding: '20px 28px',
+          minWidth: '420px',
+          boxShadow: '0 0 30px rgba(239,68,68,0.5)',
+          animation: 'pulse 1s infinite'
+        }}>
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'flex-start'
+          }}>
+            <div>
+              <div style={{
+                color: '#ef4444',
+                fontWeight: 'bold',
+                fontSize: '14px',
+                letterSpacing: '2px',
+                marginBottom: '8px'
+              }}>
+                🚨 CRITICAL PATIENT ALERT
+              </div>
+              <div style={{
+                color: 'white',
+                fontSize: '18px',
+                fontWeight: 'bold'
+              }}>
+                {criticalAlert.patientName}, {criticalAlert.age}
+                {criticalAlert.gender === 'Male' ? 'M' : 'F'}
+              </div>
+              <div style={{
+                color: '#fca5a5',
+                fontSize: '14px',
+                marginTop: '4px'
+              }}>
+                {criticalAlert.complaint}
+              </div>
+              <div style={{
+                color: '#94a3b8',
+                fontSize: '12px',
+                marginTop: '8px'
+              }}>
+                Department: {criticalAlert.department}
+                &nbsp;|&nbsp;
+                Hospital: {criticalAlert.hospitalName}
+              </div>
+              <div style={{
+                color: '#94a3b8',
+                fontSize: '12px',
+                marginTop: '4px'
+              }}>
+                {criticalAlert.justification}
+              </div>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginLeft: '16px' }}>
+              <button
+                onClick={() => setShowAlert(false)}
+                style={{
+                  background: '#ef4444',
+                  border: 'none',
+                  color: 'white',
+                  cursor: 'pointer',
+                  fontSize: '12px',
+                  fontWeight: 'bold',
+                  padding: '8px 12px',
+                  borderRadius: '4px',
+                  letterSpacing: '0.5px',
+                  textTransform: 'uppercase'
+                }}
+              >
+                Acknowledge & Prep
+              </button>
+              <button
+                onClick={() => setShowAlert(false)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#94a3b8',
+                  cursor: 'pointer',
+                  fontSize: '18px',
+                }}
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* TopNavBar */}
       <header className="bg-white dark:bg-slate-900 font-sans Inter text-sm antialiased docked full-width top-0 z-50 h-14 border-b border-slate-200 dark:border-slate-800 flat no shadows flex justify-between items-center w-full px-6">
         <div className="flex items-center gap-8 h-full">
@@ -273,6 +495,7 @@ export default function LiveDashboard({ isDarkMode, setIsDarkMode }) {
                 <thead>
                   <tr className="bg-surface-container dark:bg-slate-900 border-b border-border-light dark:border-slate-700">
                     <th className="p-3 font-label-caps text-label-caps text-on-surface-variant dark:text-slate-400 uppercase">Patient</th>
+                    <th className="p-3 font-label-caps text-label-caps text-on-surface-variant dark:text-slate-400 uppercase">Status</th>
                     <th className="p-3 font-label-caps text-label-caps text-on-surface-variant dark:text-slate-400 uppercase">Priority</th>
                     <th className="p-3 font-label-caps text-label-caps text-on-surface-variant dark:text-slate-400 uppercase">Department</th>
                     <th className="p-3 font-label-caps text-label-caps text-on-surface-variant dark:text-slate-400 uppercase">Wait Time</th>
@@ -282,11 +505,11 @@ export default function LiveDashboard({ isDarkMode, setIsDarkMode }) {
                 <tbody className="font-data-tabular text-data-tabular">
                   {loading ? (
                     <tr>
-                      <td colSpan="5" className="p-8 text-center text-on-surface-variant dark:text-slate-400">Loading patients...</td>
+                      <td colSpan="6" className="p-8 text-center text-on-surface-variant dark:text-slate-400">Loading patients...</td>
                     </tr>
                   ) : filteredPatients.length === 0 ? (
                     <tr>
-                      <td colSpan="5" className="p-8 text-center text-on-surface-variant dark:text-slate-400">
+                      <td colSpan="6" className="p-8 text-center text-on-surface-variant dark:text-slate-400">
                         No patients in this department.
                       </td>
                     </tr>
@@ -301,6 +524,14 @@ export default function LiveDashboard({ isDarkMode, setIsDarkMode }) {
                               <span className="text-on-surface-variant dark:text-slate-400 text-xs mt-0.5">ID: {patient.patientId || 'N/A'}</span>
                               <span className="text-on-surface-variant dark:text-slate-400 text-xs mt-0.5">{patient.complaint?.substring(0, 40)}{patient.complaint?.length > 40 ? '...' : ''}</span>
                             </div>
+                          </td>
+                          <td className="p-3">
+                            <span 
+                              className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold text-white shadow-sm"
+                              style={{ backgroundColor: patient.status === 'Waiting' ? '#f97316' : '#ef4444' }}
+                            >
+                              {patient.status || 'Waiting'}
+                            </span>
                           </td>
                           <td className="p-3">
                             <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold border ${style.bg} ${style.text} ${style.border}`}>
