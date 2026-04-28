@@ -9,6 +9,7 @@ import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import RegionalCommand from './pages/RegionalCommand';
 import HospitalSelection from './pages/HospitalSelection';
+import LoadingScreen from './pages/LoadingScreen';
 
 const NurseRoute = ({ children }) => {
   const token = localStorage.getItem('hs_token');
@@ -36,13 +37,20 @@ const SharedRoute = ({ children }) => {
   return <Navigate to="/login" replace />;
 };
 
+// Minimum ms the loading screen is visible regardless of Firebase speed
+const MIN_LOADING_MS = 2800;
+
 function App() {
-  const [authChecked, setAuthChecked] = useState(false);
+  const [authChecked, setAuthChecked]       = useState(false);
+  const [minTimeElapsed, setMinTimeElapsed] = useState(false);
+  const [fadeOut, setFadeOut]               = useState(false);
+
   const [isDarkMode, setIsDarkMode] = useState(() => {
     const savedTheme = localStorage.getItem('theme');
     return savedTheme === 'dark';
   });
 
+  // Dark-mode side-effect
   useEffect(() => {
     if (isDarkMode) {
       document.documentElement.classList.add('dark');
@@ -53,7 +61,13 @@ function App() {
     }
   }, [isDarkMode]);
 
-  // Listen to Firebase auth state
+  // Minimum display timer
+  useEffect(() => {
+    const timer = setTimeout(() => setMinTimeElapsed(true), MIN_LOADING_MS);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Firebase auth listener
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (!user) {
@@ -62,17 +76,30 @@ function App() {
       }
       setAuthChecked(true);
     });
-
     return () => unsubscribe();
   }, []);
 
-  if (!authChecked) {
+  // Trigger fade-out once both conditions are satisfied
+  const bothReady = authChecked && minTimeElapsed;
+
+  useEffect(() => {
+    if (bothReady) {
+      const fadeTimer = setTimeout(() => setFadeOut(true), 100);
+      return () => clearTimeout(fadeTimer);
+    }
+  }, [bothReady]);
+
+  // Show loading screen until fade-out animation completes (~500 ms)
+  if (!bothReady || !fadeOut) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-gray-900">
-        <div className="flex flex-col items-center gap-3">
-          <span className="material-symbols-outlined text-primary text-[48px] animate-spin">progress_activity</span>
-          <p className="text-slate-500 dark:text-slate-400 text-sm">Loading HealthSync...</p>
-        </div>
+      <div
+        style={{
+          transition: 'opacity 0.5s ease',
+          opacity: fadeOut ? 0 : 1,
+          pointerEvents: fadeOut ? 'none' : 'auto',
+        }}
+      >
+        <LoadingScreen />
       </div>
     );
   }

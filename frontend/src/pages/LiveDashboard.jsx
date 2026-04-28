@@ -402,9 +402,8 @@ export default function LiveDashboard({ isDarkMode, setIsDarkMode }) {
       {/* TopNavBar */}
       <header className="bg-white dark:bg-slate-900 font-sans Inter text-sm antialiased docked full-width top-0 z-50 h-14 border-b border-slate-200 dark:border-slate-800 flat no shadows flex justify-between items-center w-full px-6">
         <div className="flex items-center gap-8 h-full">
-          <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-primary dark:text-slate-50" style={{ fontVariationSettings: "'FILL' 1" }}>medical_services</span>
-            <span className="text-lg font-black tracking-tight text-slate-900 dark:text-slate-50 uppercase">HealthSync</span>
+          <div style={{ display: 'flex', alignItems: 'center', height: '100%' }}>
+            <img src="/nav.JPG" alt="HealthSync" style={{ height: '52px', width: 'auto', objectFit: 'contain', display: 'block' }} />
           </div>
           <nav className="hidden md:flex h-full gap-6">
             {role === 'Nurse' && (

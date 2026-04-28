@@ -89,16 +89,8 @@ export default function HospitalSelection({ isDarkMode, setIsDarkMode }) {
     <div className="min-h-screen bg-white dark:bg-gray-900 transition-colors duration-300 flex flex-col">
       {/* ── Top bar ─────────────────────────────────────────── */}
       <header className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-800">
-        <div className="flex items-center gap-2">
-          <span
-            className="material-symbols-outlined text-[#0d6efd]"
-            style={{ fontVariationSettings: "'FILL' 1" }}
-          >
-            medical_services
-          </span>
-          <span className="text-lg font-black tracking-tight text-slate-900 dark:text-white uppercase">
-            HealthSync
-          </span>
+        <div style={{ display: 'flex', alignItems: 'center', height: '100%' }}>
+          <img src="/nav.JPG" alt="HealthSync" style={{ height: '52px', width: 'auto', objectFit: 'contain', display: 'block' }} />
         </div>
 
         <div className="flex items-center gap-3">

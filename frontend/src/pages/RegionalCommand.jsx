@@ -230,9 +230,8 @@ export default function RegionalCommand({ isDarkMode, setIsDarkMode }) {
     <div className="bg-background dark:bg-slate-900 text-on-surface dark:text-slate-50 font-body-sm text-body-sm min-h-screen selection:bg-primary selection:text-white">
       {/* TopNavBar */}
       <header className="bg-white dark:bg-slate-900 font-sans Inter text-sm antialiased fixed top-0 left-0 w-full z-50 h-14 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center px-6">
-        <div className="flex items-center gap-2">
-          <span className="material-symbols-outlined text-primary dark:text-slate-50" style={{ fontVariationSettings: "'FILL' 1" }}>medical_services</span>
-          <span className="text-lg font-black tracking-tight text-slate-900 dark:text-slate-50 uppercase">HealthSync</span>
+        <div style={{ display: 'flex', alignItems: 'center', height: '100%' }}>
+          <img src="/nav.JPG" alt="HealthSync" style={{ height: '52px', width: 'auto', objectFit: 'contain', display: 'block' }} />
         </div>
         <nav className="flex space-x-6 h-full items-end">
           {role === 'Nurse' && (

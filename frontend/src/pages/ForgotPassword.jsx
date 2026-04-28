@@ -61,9 +61,8 @@ export default function ForgotPassword({ isDarkMode, setIsDarkMode }) {
       </div>
 
       <div className="max-w-md w-full px-6 py-8">
-        <div className="flex items-center gap-2 mb-6">
-          <span className="material-symbols-outlined text-primary" style={{ fontVariationSettings: "'FILL' 1" }}>medical_services</span>
-          <span className="text-lg font-black tracking-tight text-slate-900 dark:text-white uppercase">HealthSync</span>
+        <div style={{ display: 'flex', alignItems: 'center', height: '100%' }} className="mb-6">
+          <img src="/nav.JPG" alt="HealthSync" style={{ height: '52px', width: 'auto', objectFit: 'contain', display: 'block' }} />
         </div>
         <h2 className="text-[32px] font-bold text-gray-900 dark:text-white mb-1">
           Reset your password
