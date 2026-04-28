@@ -173,7 +173,7 @@ export default function PatientIntake({ isDarkMode, setIsDarkMode }) {
       {/* TopNavBar */}
       <header className="bg-white dark:bg-slate-900 font-sans Inter text-sm antialiased docked full-width top-0 z-50 h-14 border-b border-slate-200 dark:border-slate-800 flat no shadows flex justify-between items-center w-full px-6 hidden md:flex">
         <div style={{ display: 'flex', alignItems: 'center', height: '100%' }}>
-          <img src="/nav.JPG" alt="HealthSync" style={{ height: '52px', width: 'auto', objectFit: 'contain', display: 'block' }} />
+          <img src="/nav_logo.png" alt="HealthSync" style={{ height: '52px', width: 'auto', objectFit: 'contain', display: 'block', filter: isDarkMode ? 'invert(1)' : 'none' }} />
         </div>
         <nav className="flex space-x-6 h-full items-end">
           {role === 'Nurse' && (
@@ -427,3 +427,8 @@ export default function PatientIntake({ isDarkMode, setIsDarkMode }) {
     </div>
   );
 }
+
+
+
+
+

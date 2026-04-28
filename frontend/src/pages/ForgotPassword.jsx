@@ -62,7 +62,7 @@ export default function ForgotPassword({ isDarkMode, setIsDarkMode }) {
 
       <div className="max-w-md w-full px-6 py-8">
         <div style={{ display: 'flex', alignItems: 'center', height: '100%' }} className="mb-6">
-          <img src="/nav.JPG" alt="HealthSync" style={{ height: '52px', width: 'auto', objectFit: 'contain', display: 'block' }} />
+          <img src="/nav_logo.png" alt="HealthSync" style={{ height: '52px', width: 'auto', objectFit: 'contain', display: 'block', filter: isDarkMode ? 'invert(1)' : 'none' }} />
         </div>
         <h2 className="text-[32px] font-bold text-gray-900 dark:text-white mb-1">
           Reset your password
@@ -118,3 +118,7 @@ export default function ForgotPassword({ isDarkMode, setIsDarkMode }) {
     </div>
   );
 }
+
+
+
+

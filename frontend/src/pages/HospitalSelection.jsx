@@ -90,7 +90,7 @@ export default function HospitalSelection({ isDarkMode, setIsDarkMode }) {
       {/* ── Top bar ─────────────────────────────────────────── */}
       <header className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-800">
         <div style={{ display: 'flex', alignItems: 'center', height: '100%' }}>
-          <img src="/nav.JPG" alt="HealthSync" style={{ height: '52px', width: 'auto', objectFit: 'contain', display: 'block' }} />
+          <img src="/nav_logo.png" alt="HealthSync" style={{ height: '52px', width: 'auto', objectFit: 'contain', display: 'block', filter: isDarkMode ? 'invert(1)' : 'none' }} />
         </div>
 
         <div className="flex items-center gap-3">
@@ -238,3 +238,8 @@ export default function HospitalSelection({ isDarkMode, setIsDarkMode }) {
     </div>
   );
 }
+
+
+
+
+

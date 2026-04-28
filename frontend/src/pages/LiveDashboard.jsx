@@ -403,7 +403,7 @@ export default function LiveDashboard({ isDarkMode, setIsDarkMode }) {
       <header className="bg-white dark:bg-slate-900 font-sans Inter text-sm antialiased docked full-width top-0 z-50 h-14 border-b border-slate-200 dark:border-slate-800 flat no shadows flex justify-between items-center w-full px-6">
         <div className="flex items-center gap-8 h-full">
           <div style={{ display: 'flex', alignItems: 'center', height: '100%' }}>
-            <img src="/nav.JPG" alt="HealthSync" style={{ height: '52px', width: 'auto', objectFit: 'contain', display: 'block' }} />
+            <img src="/nav_logo.png" alt="HealthSync" style={{ height: '52px', width: 'auto', objectFit: 'contain', display: 'block', filter: isDarkMode ? 'invert(1)' : 'none' }} />
           </div>
           <nav className="hidden md:flex h-full gap-6">
             {role === 'Nurse' && (
@@ -860,3 +860,8 @@ export default function LiveDashboard({ isDarkMode, setIsDarkMode }) {
     </div>
   );
 }
+
+
+
+
+
