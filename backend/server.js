@@ -8,7 +8,7 @@ const connectDB = require('./src/config/db');
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: 'http://localhost:5173',
+    origin: ['http://localhost:5173', 'process.env.FRONTEND_URL'].filter(Boolean),
     methods: ['GET', 'POST', 'PATCH'],
     credentials: true,
   },
