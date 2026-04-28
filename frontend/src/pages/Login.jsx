@@ -15,6 +15,7 @@ function Login({ isDarkMode, setIsDarkMode }) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [slowLoading, setSlowLoading] = useState(false);
   const [mode, setMode] = useState('signin');        // 'signin' | 'register'
 
 
@@ -33,9 +34,15 @@ function Login({ isDarkMode, setIsDarkMode }) {
     e.preventDefault();
     setError('');
     setLoading(true);
+    setSlowLoading(false);
+    const slowTimeout = setTimeout(() => {
+      setSlowLoading(true);
+    }, 3000);
+
     try {
       // 1. Call backend — source of truth for role
       const response = await axios.post(API_ROUTES.login, { email, password });
+      clearTimeout(slowTimeout);
       const returnedRole = response.data.role; // 'Nurse' | 'Doctor'
 
       // 2. Validate that the selected toggle matches the account's actual role
@@ -52,11 +59,23 @@ function Login({ isDarkMode, setIsDarkMode }) {
       // 4. Persist session and navigate
       localStorage.setItem('hs_token', response.data.token);
       navigateByRole(returnedRole);
-    } catch (err) {
-      const backendMsg = err.response?.data?.error;
-      setError(backendMsg || getFriendlyError(err.code));
+    } catch (error) {
+      clearTimeout(slowTimeout);
+      setSlowLoading(false);
+      if (!error.response) {
+        setError(
+          "Cannot connect to server. " +
+          "Please wait 60 seconds and try again. " +
+          "Server may be starting up."
+        );
+      } else {
+        const backendMsg = error.response?.data?.error;
+        setError(backendMsg || getFriendlyError(error.code) || "Something went wrong");
+      }
     } finally {
+      clearTimeout(slowTimeout);
       setLoading(false);
+      setSlowLoading(false);
     }
   };
 
@@ -65,6 +84,11 @@ function Login({ isDarkMode, setIsDarkMode }) {
     e.preventDefault();
     setError('');
     setLoading(true);
+    setSlowLoading(false);
+    const slowTimeout = setTimeout(() => {
+      setSlowLoading(true);
+    }, 3000);
+
     try {
       const capitalizedRole = getCapitalizedRole();
 
@@ -74,17 +98,30 @@ function Login({ isDarkMode, setIsDarkMode }) {
         password,
         role: capitalizedRole,
       });
+      clearTimeout(slowTimeout);
 
       // 2. Sign in on the Firebase client
       await signInWithEmailAndPassword(auth, email, password);
 
       // 3. Persist and navigate
       navigateByRole(capitalizedRole);
-    } catch (err) {
-      const backendMsg = err.response?.data?.error;
-      setError(backendMsg || getFriendlyError(err.code));
+    } catch (error) {
+      clearTimeout(slowTimeout);
+      setSlowLoading(false);
+      if (!error.response) {
+        setError(
+          "Cannot connect to server. " +
+          "Please wait 60 seconds and try again. " +
+          "Server may be starting up."
+        );
+      } else {
+        const backendMsg = error.response?.data?.error;
+        setError(backendMsg || getFriendlyError(error.code) || "Something went wrong");
+      }
     } finally {
+      clearTimeout(slowTimeout);
       setLoading(false);
+      setSlowLoading(false);
     }
   };
 
@@ -100,6 +137,11 @@ function Login({ isDarkMode, setIsDarkMode }) {
     }
 
     setLoading(true);
+    setSlowLoading(false);
+    const slowTimeout = setTimeout(() => {
+      setSlowLoading(true);
+    }, 3000);
+
     try {
       // 1. Firebase popup — signs user into Firebase client
       const result = await signInWithPopup(auth, googleProvider);
@@ -110,6 +152,8 @@ function Login({ isDarkMode, setIsDarkMode }) {
         idToken,
         role: capitalizedRole,
       });
+
+      clearTimeout(slowTimeout);
 
       if (response.data.needsRole) {
         // Should not happen since we always send a role,
@@ -126,12 +170,24 @@ function Login({ isDarkMode, setIsDarkMode }) {
       }
       localStorage.setItem('hs_token', response.data.token || idToken);
       navigateByRole(returnedRole);
-    } catch (err) {
-      const backendMsg = err.response?.data?.error;
-      // Show the real error message — fall back to friendly message only for known codes
-      setError(backendMsg || getFriendlyError(err.code) + (err.message ? ` (${err.message})` : ''));
+    } catch (error) {
+      clearTimeout(slowTimeout);
+      setSlowLoading(false);
+      if (!error.response) {
+        setError(
+          "Cannot connect to server. " +
+          "Please wait 60 seconds and try again. " +
+          "Server may be starting up."
+        );
+      } else {
+        const backendMsg = error.response?.data?.error;
+        // Show the real error message — fall back to friendly message only for known codes
+        setError(backendMsg || getFriendlyError(error.code) + (error.message ? ` (${error.message})` : '') || "Something went wrong");
+      }
     } finally {
+      clearTimeout(slowTimeout);
       setLoading(false);
+      setSlowLoading(false);
     }
   };
 
@@ -256,6 +312,20 @@ function Login({ isDarkMode, setIsDarkMode }) {
             >
               {loading ? 'Please wait...' : (isRegister ? 'Create Account' : 'Sign in')}
             </button>
+            
+            {slowLoading && (
+              <div className="flex items-center justify-center space-x-2 text-sm text-yellow-600 dark:text-yellow-400 mt-2 text-center break-words">
+                 <svg className="animate-spin h-5 w-5 text-yellow-600 dark:text-yellow-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span>
+                  Connecting to server... <br />
+                  This may take up to 60 seconds <br />
+                  on first load.
+                </span>
+              </div>
+            )}
 
             {!isRegister && (
               <button

@@ -41,6 +41,7 @@ export default function HospitalSelection({ isDarkMode, setIsDarkMode }) {
   const [selecting, setSelecting] = useState(null);
   const [hospitals, setHospitals] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   const userRole = localStorage.getItem('hs_role') || 'Doctor';
 
@@ -51,6 +52,15 @@ export default function HospitalSelection({ isDarkMode, setIsDarkMode }) {
         setHospitals(res.data);
       } catch (err) {
         console.error("Failed to fetch hospitals:", err);
+        if (!err.response) {
+          setError(
+            "Cannot connect to server. " +
+            "Please wait 60 seconds and try again. " +
+            "Server may be starting up."
+          );
+        } else {
+          setError(err.response?.data?.error || "Something went wrong");
+        }
       } finally {
         setLoading(false);
       }
@@ -82,6 +92,15 @@ export default function HospitalSelection({ isDarkMode, setIsDarkMode }) {
     } catch (err) {
       console.error("Failed to select hospital:", err);
       setSelecting(null);
+      if (!err.response) {
+        setError(
+          "Cannot connect to server. " +
+          "Please wait 60 seconds and try again. " +
+          "Server may be starting up."
+        );
+      } else {
+        setError(err.response?.data?.error || "Something went wrong");
+      }
     }
   };
 

@@ -1,5 +1,5 @@
-export const BACKEND_URL = "http://localhost:5000";
-export const SOCKET_URL = "http://localhost:5000";
+export const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
+export const SOCKET_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
 
 export const API_ROUTES = {
   // Patients
@@ -11,6 +11,8 @@ export const API_ROUTES = {
   login:      `${BACKEND_URL}/api/auth/login`,
   google:     `${BACKEND_URL}/api/auth/google`,
   assignRole: `${BACKEND_URL}/api/auth/assign-role`,
+  forgotPassword: `${BACKEND_URL}/api/auth/forgot-password`,
+  resetPassword: `${BACKEND_URL}/api/auth/reset-password`,
   // Dispatch
   dispatchLive: `${BACKEND_URL}/api/dispatch/hospitals/live`,
   dispatchRoute: `${BACKEND_URL}/api/dispatch/route`,

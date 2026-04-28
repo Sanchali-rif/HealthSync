@@ -17,7 +17,7 @@ export default function ForgotPassword({ isDarkMode, setIsDarkMode }) {
 
     try {
       const response = await axios.post(
-        "http://localhost:5000/api/auth/forgot-password",
+        API_ROUTES.forgotPassword,
         { email: email },
         {
           headers: {
@@ -33,11 +33,17 @@ export default function ForgotPassword({ isDarkMode, setIsDarkMode }) {
 
     } catch (error) {
       console.log("Forgot password error:", error)
-      
-      if (error.response) {
-        setError(error.response.data.error || "Something went wrong. Please try again.")
+      if (!error.response) {
+        setError(
+          "Cannot connect to server. " +
+          "Please wait 60 seconds and try again. " +
+          "Server may be starting up."
+        );
       } else {
-        setError("Cannot connect to server. Make sure backend is running.")
+        setError(
+          error.response?.data?.error || 
+          "Something went wrong"
+        );
       }
     } finally {
       setLoading(false)

@@ -106,7 +106,15 @@ export default function PatientIntake({ isDarkMode, setIsDarkMode }) {
       const response = await axiosInstance.post(API_ROUTES.triage, payload);
       setTriageResult(response.data.aiTriage);
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to submit patient. Please try again.');
+      if (!err.response) {
+        setError(
+          "Cannot connect to server. " +
+          "Please wait 60 seconds and try again. " +
+          "Server may be starting up."
+        );
+      } else {
+        setError(err.response?.data?.error || 'Failed to submit patient. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -143,7 +151,15 @@ export default function PatientIntake({ isDarkMode, setIsDarkMode }) {
       const response = await axiosInstance.post(API_ROUTES.triage, payload);
       setTriageResult(response.data.aiTriage);
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to submit manually. Please try again.');
+      if (!err.response) {
+        setError(
+          "Cannot connect to server. " +
+          "Please wait 60 seconds and try again. " +
+          "Server may be starting up."
+        );
+      } else {
+        setError(err.response?.data?.error || 'Failed to submit manually. Please try again.');
+      }
     } finally {
       setLoading(false);
     }

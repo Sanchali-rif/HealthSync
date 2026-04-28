@@ -50,7 +50,15 @@ export default function ResetPassword({ isDarkMode, setIsDarkMode }) {
         navigate('/login');
       }, 2000);
     } catch (err) {
-      setError(err.response?.data?.error || 'Something went wrong. Please try again.');
+      if (!err.response) {
+        setError(
+          "Cannot connect to server. " +
+          "Please wait 60 seconds and try again. " +
+          "Server may be starting up."
+        );
+      } else {
+        setError(err.response?.data?.error || 'Something went wrong. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
