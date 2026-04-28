@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axiosInstance from '../utils/axiosInstance';
 import { API_ROUTES } from '../config/api';
@@ -51,6 +51,22 @@ export default function PatientIntake({ isDarkMode, setIsDarkMode }) {
   const navigate = useNavigate();
   const [triageResult, setTriageResult] = useState(null);
 
+  // Controlled form state — survives dark mode re-renders
+  const [formData, setFormData] = useState({
+    patientId: '',
+    name: '',
+    age: '',
+    gender: '',
+    arrival: '',
+    hr: '100',
+    bp: '120/80',
+    temp: '37.2',
+    spo2: '95',
+    complaint: '',
+  });
+
+  const setField = (field) => (e) => setFormData((prev) => ({ ...prev, [field]: e.target.value }));
+
   const handleLogout = async () => {
     try {
       localStorage.removeItem('hs_token');
@@ -66,17 +82,6 @@ export default function PatientIntake({ isDarkMode, setIsDarkMode }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Refs for form fields
-  const nameRef = useRef();
-  const ageRef = useRef();
-  const genderRef = useRef();
-  const arrivalRef = useRef();
-  const hrRef = useRef();
-  const bpRef = useRef();
-  const tempRef = useRef();
-  const spo2Ref = useRef();
-  const complaintRef = useRef();
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -85,15 +90,16 @@ export default function PatientIntake({ isDarkMode, setIsDarkMode }) {
 
     try {
       const payload = {
-        name: nameRef.current.value,
-        age: Number(ageRef.current.value),
-        gender: genderRef.current.value,
-        complaint: complaintRef.current.value,
+        patientId: formData.patientId,
+        name: formData.name,
+        age: Number(formData.age),
+        gender: formData.gender,
+        complaint: formData.complaint,
         vitals: {
-          hr: Number(hrRef.current.value),
-          bp: bpRef.current.value,
-          temp: Number(tempRef.current.value),
-          spo2: Number(spo2Ref.current.value),
+          hr: Number(formData.hr),
+          bp: formData.bp,
+          temp: Number(formData.temp),
+          spo2: Number(formData.spo2),
         },
       };
 
@@ -106,18 +112,58 @@ export default function PatientIntake({ isDarkMode, setIsDarkMode }) {
     }
   };
 
+  const handleManualTriage = async (level) => {
+    setError('');
+    setLoading(true);
+    setTriageResult(null);
+
+    try {
+      const payload = {
+        patientId: formData.patientId,
+        name: formData.name,
+        age: Number(formData.age),
+        gender: formData.gender,
+        complaint: formData.complaint,
+        vitals: {
+          hr: Number(formData.hr),
+          bp: formData.bp,
+          temp: Number(formData.temp),
+          spo2: Number(formData.spo2),
+        },
+        manualTriage: {
+          priorityLevel: level,
+          priorityLabel: priorityDisplayLabel[level],
+          department: 'General',
+          justification: 'Manually triaged due to AI system failure',
+          suggestedHospital: null,
+          dispatchReason: 'Manual Override'
+        }
+      };
+
+      const response = await axiosInstance.post(API_ROUTES.triage, payload);
+      setTriageResult(response.data.aiTriage);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to submit manually. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const resetForm = () => {
     setTriageResult(null);
     setError('');
-    if (nameRef.current)     nameRef.current.value     = 'John Doe';
-    if (ageRef.current)      ageRef.current.value      = '54';
-    if (genderRef.current)   genderRef.current.value   = 'Male';
-    if (arrivalRef.current)  arrivalRef.current.value  = '14:23';
-    if (hrRef.current)       hrRef.current.value       = '100';
-    if (bpRef.current)       bpRef.current.value       = '120/80';
-    if (tempRef.current)     tempRef.current.value     = '37.2';
-    if (spo2Ref.current)     spo2Ref.current.value     = '95';
-    if (complaintRef.current) complaintRef.current.value = 'Patient complains of severe, crushing chest pain radiating to the left arm and jaw. Started 45 minutes ago. Diaphoretic upon arrival.';
+    setFormData({
+      patientId: '',
+      name: '',
+      age: '',
+      gender: '',
+      arrival: '',
+      hr: '100',
+      bp: '120/80',
+      temp: '37.2',
+      spo2: '95',
+      complaint: '',
+    });
   };
 
   const cfg = triageResult ? priorityConfig[triageResult.priorityLevel] || priorityConfig[4] : null;
@@ -200,8 +246,16 @@ export default function PatientIntake({ isDarkMode, setIsDarkMode }) {
             <h1 className="font-headline-md text-headline-md text-on-surface">Emergency Room Triage</h1>
             <p className="font-body-sm text-body-sm text-on-surface-variant dark:text-slate-300">Log patient arrival and compute initial severity.</p>
           </div>
-          <div className="font-data-tabular text-data-tabular text-on-surface-variant dark:text-slate-300 bg-surface-container dark:bg-slate-800 px-3 py-1.5 rounded-DEFAULT border border-outline-variant dark:border-slate-700">
-            ID: HS-9938-A
+          <div className="font-data-tabular text-data-tabular text-on-surface-variant dark:text-slate-300 bg-surface-container dark:bg-slate-800 px-3 py-1.5 rounded-DEFAULT border border-outline-variant dark:border-slate-700 flex items-center gap-2 focus-within:ring-1 focus-within:ring-primary focus-within:border-primary transition-colors">
+            <span>ID:</span>
+            <input 
+              value={formData.patientId}
+              onChange={setField('patientId')}
+              type="text" 
+              placeholder="_____" 
+              className="bg-transparent border-none outline-none w-24 text-on-surface dark:text-white placeholder-slate-400 font-data-tabular p-0 m-0" 
+              required
+            />
           </div>
         </div>
 
@@ -218,25 +272,26 @@ export default function PatientIntake({ isDarkMode, setIsDarkMode }) {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block font-label-caps text-label-caps text-on-surface-variant dark:text-slate-300 mb-1">Full Name</label>
-                    <input ref={nameRef} className="w-full bg-surface-container-low dark:bg-slate-900 border border-outline-variant dark:border-slate-600 rounded-DEFAULT px-3 py-2 font-data-tabular text-data-tabular text-on-surface dark:text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors" type="text" defaultValue="John Doe" required />
+                    <input value={formData.name} onChange={setField('name')} className="w-full bg-surface-container-low dark:bg-slate-900 border border-outline-variant dark:border-slate-600 rounded-DEFAULT px-3 py-2 font-data-tabular text-data-tabular text-on-surface dark:text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors" type="text" placeholder="Enter full name" required />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block font-label-caps text-label-caps text-on-surface-variant dark:text-slate-300 mb-1">Age</label>
-                      <input ref={ageRef} className="w-full bg-surface-container-low dark:bg-slate-900 border border-outline-variant dark:border-slate-600 rounded-DEFAULT px-3 py-2 font-data-tabular text-data-tabular text-on-surface dark:text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors" type="number" defaultValue="54" required />
+                      <input value={formData.age} onChange={setField('age')} className="w-full bg-surface-container-low dark:bg-slate-900 border border-outline-variant dark:border-slate-600 rounded-DEFAULT px-3 py-2 font-data-tabular text-data-tabular text-on-surface dark:text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors" type="number" placeholder="e.g. 54" required />
                     </div>
                     <div>
                       <label className="block font-label-caps text-label-caps text-on-surface-variant dark:text-slate-300 mb-1">Gender</label>
-                      <select ref={genderRef} className="w-full bg-surface-container-low dark:bg-slate-900 border border-outline-variant dark:border-slate-600 rounded-DEFAULT px-3 py-2 font-data-tabular text-data-tabular text-on-surface dark:text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors appearance-none">
-                        <option>Male</option>
-                        <option>Female</option>
-                        <option>Other</option>
+                      <select value={formData.gender} onChange={setField('gender')} className="w-full bg-surface-container-low dark:bg-slate-900 border border-outline-variant dark:border-slate-600 rounded-DEFAULT px-3 py-2 font-data-tabular text-data-tabular text-on-surface dark:text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors appearance-none" required>
+                        <option value="" disabled>Select Gender</option>
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                        <option value="Other">Other</option>
                       </select>
                     </div>
                   </div>
                   <div className="md:col-span-2">
                     <label className="block font-label-caps text-label-caps text-on-surface-variant dark:text-slate-300 mb-1">Arrival Time</label>
-                    <input ref={arrivalRef} className="w-full md:w-1/2 bg-surface-container-low dark:bg-slate-900 border border-outline-variant dark:border-slate-600 rounded-DEFAULT px-3 py-2 font-data-tabular text-data-tabular text-on-surface dark:text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors" type="time" defaultValue="14:23" />
+                    <input value={formData.arrival} onChange={setField('arrival')} className="w-full md:w-1/2 bg-surface-container-low dark:bg-slate-900 border border-outline-variant dark:border-slate-600 rounded-DEFAULT px-3 py-2 font-data-tabular text-data-tabular text-on-surface dark:text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors" type="time" required />
                   </div>
                 </div>
               </section>
@@ -250,19 +305,19 @@ export default function PatientIntake({ isDarkMode, setIsDarkMode }) {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div>
                     <label className="block font-label-caps text-label-caps text-on-surface-variant dark:text-slate-300 mb-1">HR (bpm)</label>
-                    <input ref={hrRef} className="w-full bg-status-urgent-bg dark:bg-[#431407] border border-status-urgent-text border-opacity-30 dark:border-orange-700/50 rounded-DEFAULT px-3 py-2 font-data-tabular text-data-tabular text-status-urgent-text dark:text-orange-400 font-bold focus:outline-none focus:border-primary transition-colors" type="number" defaultValue="100" required />
+                    <input value={formData.hr} onChange={setField('hr')} className="w-full bg-status-urgent-bg dark:bg-[#431407] border border-status-urgent-text border-opacity-30 dark:border-orange-700/50 rounded-DEFAULT px-3 py-2 font-data-tabular text-data-tabular text-status-urgent-text dark:text-orange-400 font-bold focus:outline-none focus:border-primary transition-colors" type="number" required />
                   </div>
                   <div>
                     <label className="block font-label-caps text-label-caps text-on-surface-variant dark:text-slate-300 mb-1">BP (mmHg)</label>
-                    <input ref={bpRef} className="w-full bg-surface-container-low dark:bg-slate-900 border border-outline-variant dark:border-slate-600 rounded-DEFAULT px-3 py-2 font-data-tabular text-data-tabular text-on-surface dark:text-white focus:outline-none focus:border-primary transition-colors" type="text" defaultValue="120/80" required />
+                    <input value={formData.bp} onChange={setField('bp')} className="w-full bg-surface-container-low dark:bg-slate-900 border border-outline-variant dark:border-slate-600 rounded-DEFAULT px-3 py-2 font-data-tabular text-data-tabular text-on-surface dark:text-white focus:outline-none focus:border-primary transition-colors" type="text" required />
                   </div>
                   <div>
                     <label className="block font-label-caps text-label-caps text-on-surface-variant dark:text-slate-300 mb-1">Temp (°C)</label>
-                    <input ref={tempRef} className="w-full bg-surface-container-low dark:bg-slate-900 border border-outline-variant dark:border-slate-600 rounded-DEFAULT px-3 py-2 font-data-tabular text-data-tabular text-on-surface dark:text-white focus:outline-none focus:border-primary transition-colors" step="0.1" type="number" defaultValue="37.2" required />
+                    <input value={formData.temp} onChange={setField('temp')} className="w-full bg-surface-container-low dark:bg-slate-900 border border-outline-variant dark:border-slate-600 rounded-DEFAULT px-3 py-2 font-data-tabular text-data-tabular text-on-surface dark:text-white focus:outline-none focus:border-primary transition-colors" step="0.1" type="number" required />
                   </div>
                   <div>
                     <label className="block font-label-caps text-label-caps text-on-surface-variant dark:text-slate-300 mb-1">SpO2 (%)</label>
-                    <input ref={spo2Ref} className="w-full bg-surface-container-low dark:bg-slate-900 border border-outline-variant dark:border-slate-600 rounded-DEFAULT px-3 py-2 font-data-tabular text-data-tabular text-on-surface dark:text-white focus:outline-none focus:border-primary transition-colors" type="number" defaultValue="95" required />
+                    <input value={formData.spo2} onChange={setField('spo2')} className="w-full bg-surface-container-low dark:bg-slate-900 border border-outline-variant dark:border-slate-600 rounded-DEFAULT px-3 py-2 font-data-tabular text-data-tabular text-on-surface dark:text-white focus:outline-none focus:border-primary transition-colors" type="number" required />
                   </div>
                 </div>
               </section>
@@ -273,11 +328,36 @@ export default function PatientIntake({ isDarkMode, setIsDarkMode }) {
                   <span className="material-symbols-outlined text-[16px]">description</span>
                   Chief Complaint
                 </h2>
-                <textarea ref={complaintRef} className="w-full bg-surface-container-low dark:bg-slate-900 border border-outline-variant dark:border-slate-600 rounded-DEFAULT px-3 py-2 font-body-sm text-body-sm text-on-surface dark:text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors resize-none" rows="4" defaultValue="Patient complains of severe, crushing chest pain radiating to the left arm and jaw. Started 45 minutes ago. Diaphoretic upon arrival." required></textarea>
+                <textarea value={formData.complaint} onChange={setField('complaint')} className="w-full bg-surface-container-low dark:bg-slate-900 border border-outline-variant dark:border-slate-600 rounded-DEFAULT px-3 py-2 font-body-sm text-body-sm text-on-surface dark:text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors resize-none" rows="4" placeholder="Describe patient symptoms and chief complaint..." required></textarea>
               </section>
 
               {error && (
-                <p className="text-red-500 text-sm bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-DEFAULT px-4 py-2">{error}</p>
+                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-DEFAULT px-4 py-3">
+                  <p className="text-red-700 dark:text-red-400 text-sm mb-3">{error}</p>
+                  <p className="text-sm text-red-600 dark:text-red-300 mb-2 font-medium">Triage patient manually:</p>
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      { level: 1, label: 'Critical' },
+                      { level: 2, label: 'Urgent' },
+                      { level: 3, label: 'Moderate' },
+                      { level: 4, label: 'Non-Urgent' }
+                    ].map(btn => (
+                      <button
+                        key={btn.level}
+                        type="button"
+                        onClick={() => handleManualTriage(btn.level)}
+                        className={`text-xs px-3 py-1.5 rounded border transition-colors ${
+                          btn.level === 1 ? 'border-red-500 text-red-700 hover:bg-red-100 dark:border-red-600 dark:text-red-400 dark:hover:bg-red-900/50' :
+                          btn.level === 2 ? 'border-orange-500 text-orange-700 hover:bg-orange-100 dark:border-orange-600 dark:text-orange-400 dark:hover:bg-orange-900/50' :
+                          btn.level === 3 ? 'border-blue-500 text-blue-700 hover:bg-blue-100 dark:border-blue-600 dark:text-blue-400 dark:hover:bg-blue-900/50' :
+                          'border-green-500 text-green-700 hover:bg-green-100 dark:border-green-600 dark:text-green-400 dark:hover:bg-green-900/50'
+                        }`}
+                      >
+                        Level {btn.level} - {btn.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               )}
 
               <button

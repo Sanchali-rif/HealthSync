@@ -7,6 +7,34 @@ import LiveDashboard from './pages/LiveDashboard';
 import Login from './pages/Login';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
+import RegionalCommand from './pages/RegionalCommand';
+import HospitalSelection from './pages/HospitalSelection';
+
+const NurseRoute = ({ children }) => {
+  const token = localStorage.getItem('hs_token');
+  const role  = localStorage.getItem('hs_role');
+  if (!token) return <Navigate to="/login" replace />;
+  if (role === 'Doctor') return <Navigate to="/dashboard" replace />;
+  if (role === 'Nurse') return children;
+  return <Navigate to="/login" replace />;
+};
+
+const DoctorRoute = ({ children }) => {
+  const token = localStorage.getItem('hs_token');
+  const role  = localStorage.getItem('hs_role');
+  if (!token) return <Navigate to="/login" replace />;
+  if (role === 'Nurse') return <Navigate to="/intake" replace />;
+  if (role === 'Doctor') return children;
+  return <Navigate to="/login" replace />;
+};
+
+const SharedRoute = ({ children }) => {
+  const token = localStorage.getItem('hs_token');
+  const role  = localStorage.getItem('hs_role');
+  if (!token) return <Navigate to="/login" replace />;
+  if (role === 'Doctor' || role === 'Nurse') return children;
+  return <Navigate to="/login" replace />;
+};
 
 function App() {
   const [authChecked, setAuthChecked] = useState(false);
@@ -49,30 +77,17 @@ function App() {
     );
   }
 
-  const NurseRoute = ({ children }) => {
-    const token = localStorage.getItem('hs_token');
-    const role  = localStorage.getItem('hs_role');
-    if (!token) return <Navigate to="/login" replace />;
-    if (role === 'Doctor') return <Navigate to="/dashboard" replace />;
-    if (role === 'Nurse') return children;
-    return <Navigate to="/login" replace />;
-  };
-
-  const DoctorRoute = ({ children }) => {
-    const token = localStorage.getItem('hs_token');
-    const role  = localStorage.getItem('hs_role');
-    if (!token) return <Navigate to="/login" replace />;
-    if (role === 'Nurse') return <Navigate to="/intake" replace />;
-    if (role === 'Doctor') return children;
-    return <Navigate to="/login" replace />;
-  };
-
   return (
     <Router>
       <Routes>
         <Route path="/login" element={<Login isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} />} />
         <Route path="/forgot-password" element={<ForgotPassword isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} />} />
         <Route path="/reset-password" element={<ResetPassword isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} />} />
+        <Route path="/select-hospital" element={
+          <SharedRoute>
+            <HospitalSelection isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} />
+          </SharedRoute>
+        } />
         <Route path="/intake" element={
           <NurseRoute>
             <PatientIntake isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} />
@@ -82,6 +97,9 @@ function App() {
           <DoctorRoute>
             <LiveDashboard isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} />
           </DoctorRoute>
+        } />
+        <Route path="/regional" element={
+            <RegionalCommand isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} />
         } />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>

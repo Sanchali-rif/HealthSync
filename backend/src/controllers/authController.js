@@ -2,6 +2,7 @@ require('dotenv').config()
 
 const admin = require('firebase-admin')
 const axios = require('axios')
+const Hospital = require('../models/Hospital')
 
 if (admin.apps.length === 0) {
   const privateKey = process.env.FIREBASE_PRIVATE_KEY
@@ -170,24 +171,11 @@ const assignRole = async (req, res) => {
 
 const forgotPassword = async (req, res) => {
   const { email } = req.body
-  
-  console.log("=== FORGOT PASSWORD ===")
-  console.log("Email received:", email)
-  console.log("Firebase Web API Key exists:", 
-    !!process.env.FIREBASE_WEB_API_KEY)
-  console.log("Key first 10 chars:", 
-    process.env.FIREBASE_WEB_API_KEY
-      ? process.env.FIREBASE_WEB_API_KEY
-          .substring(0,10) + "..."
-      : "MISSING")
 
   try {
     // Check user exists
     const userRecord = await admin.auth()
       .getUserByEmail(email)
-    console.log("User found:", userRecord.uid)
-
-    // Send reset email
     const resetResponse = await axios.post(
       `https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key=${process.env.FIREBASE_WEB_API_KEY}`,
       {
@@ -195,8 +183,6 @@ const forgotPassword = async (req, res) => {
         email: email
       }
     )
-    console.log("Reset email sent:", 
-      resetResponse.data)
 
     return res.status(200).json({
       message: "Password reset email sent. Please check your inbox.",
@@ -204,11 +190,7 @@ const forgotPassword = async (req, res) => {
     })
 
   } catch (error) {
-    console.log("=== FORGOT PASSWORD ERROR ===")
-    console.log("Error message:", error.message)
-    console.log("Error response:", 
-      error.response?.data)
-    console.log("==============================")
+    console.error("Forgot password error:", error.message)
 
     if (error.code === 'auth/user-not-found') {
       return res.status(404).json({ 
@@ -243,6 +225,102 @@ const resetPassword = async (req, res) => {
   }
 };
 
+const selectHospital = async (req, res) => {
+  try {
+    const { hospitalId } = req.body
+
+    if (!hospitalId) {
+      return res.status(400).json({
+        error: "Hospital ID is required"
+      })
+    }
+
+    const hospital = await Hospital.findById(
+      hospitalId
+    )
+
+    if (!hospital) {
+      return res.status(404).json({
+        error: "Hospital not found"
+      })
+    }
+
+    const uid = req.user.uid
+
+    const userRecord = await admin.auth()
+      .getUser(uid)
+    
+    const existingClaims = 
+      userRecord.customClaims || {}
+
+    await admin.auth().setCustomUserClaims(uid, {
+      ...existingClaims,
+      hospitalId: hospital._id.toString(),
+      hospitalName: hospital.name
+    })
+
+    console.log(`✅ Hospital selected:
+      User: ${req.user.email}
+      Hospital: ${hospital.name}`)
+
+    return res.status(200).json({
+      message: "Hospital selected successfully",
+      hospital: {
+        id: hospital._id,
+        name: hospital.name,
+        location: hospital.location,
+        specializations: hospital.specializations,
+        availableBeds: hospital.availableBeds,
+        capacity: hospital.capacity
+      }
+    })
+
+  } catch (error) {
+    console.log("Select hospital error:", 
+      error.message)
+    return res.status(500).json({
+      error: error.message
+    })
+  }
+}
+
+const getMe = async (req, res) => {
+  try {
+    const uid = req.user.uid
+    const userRecord = await admin.auth()
+      .getUser(uid)
+    
+    const claims = userRecord.customClaims || {}
+
+    let hospitalData = null
+    if (claims.hospitalId) {
+      hospitalData = await Hospital.findById(
+        claims.hospitalId
+      ).select(
+        'name location availableBeds capacity'
+      )
+    }
+
+    return res.status(200).json({
+      uid: userRecord.uid,
+      email: userRecord.email,
+      name: userRecord.displayName || null,
+      role: claims.role || null,
+      hospital: hospitalData ? {
+        id: hospitalData._id,
+        name: hospitalData.name,
+        availableBeds: hospitalData.availableBeds,
+        capacity: hospitalData.capacity
+      } : null
+    })
+
+  } catch (error) {
+    return res.status(500).json({
+      error: error.message
+    })
+  }
+}
+
 module.exports = {
   createUser,
   loginUser,
@@ -251,4 +329,6 @@ module.exports = {
   assignRole,
   forgotPassword,
   resetPassword,
+  selectHospital,
+  getMe,
 }

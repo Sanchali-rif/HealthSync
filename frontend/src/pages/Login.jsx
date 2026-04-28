@@ -22,9 +22,10 @@ function Login({ isDarkMode, setIsDarkMode }) {
   const getCapitalizedRole = () => (role === 'nurse' ? 'Nurse' : 'Doctor');
 
   // Navigate based on role string returned from backend
+  // Always route through hospital selection first
   const navigateByRole = (returnedRole) => {
     localStorage.setItem('hs_role', returnedRole);
-    navigate(returnedRole === 'Nurse' ? '/intake' : '/dashboard');
+    navigate('/select-hospital');
   };
 
   // ─── Sign In ─────────────────────────────────────────────────────────────────
@@ -283,6 +284,18 @@ function Login({ isDarkMode, setIsDarkMode }) {
             </div>
           )}
         </form>
+
+        <div className="mt-10 pt-6 border-t border-gray-200 dark:border-gray-700">
+          <p className="text-xs text-center text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-4 font-bold">Skip Login</p>
+          <button
+            onClick={() => navigate('/regional')}
+            className="w-full py-4 px-4 bg-slate-900 dark:bg-slate-800 hover:bg-black dark:hover:bg-slate-700 text-white font-black text-sm tracking-[0.2em] uppercase rounded-xl shadow-xl flex items-center justify-center gap-3 transition-all active:scale-[0.98] border border-slate-700"
+          >
+            <span className="material-symbols-outlined text-blue-400" style={{ fontVariationSettings: "'FILL' 1" }}>crisis_alert</span>
+            Enter Dispatch
+          </button>
+        </div>
+
       </div>
     </div>
   );

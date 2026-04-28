@@ -2,8 +2,6 @@ require('dotenv').config()
 
 const admin = require('firebase-admin')
 
-require('dotenv').config()
-
 if (admin.apps.length === 0) {
   const privateKey = process.env.FIREBASE_PRIVATE_KEY
 
@@ -36,7 +34,19 @@ const verifyFirebaseToken = async (req, res, next) => {
   try {
     const decodedToken = await admin.auth()
       .verifyIdToken(token)
-    req.user = decodedToken
+
+    const userRecord = await admin.auth()
+      .getUser(decodedToken.uid)
+
+    const claims = userRecord.customClaims || {}
+
+    req.user = {
+      ...decodedToken,
+      role: claims.role || decodedToken.role,
+      hospitalId: claims.hospitalId || null,
+      hospitalName: claims.hospitalName || null
+    }
+
     next()
   } catch (error) {
     return res.status(401).json({ 

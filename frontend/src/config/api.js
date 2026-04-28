@@ -11,4 +11,8 @@ export const API_ROUTES = {
   login:      `${BACKEND_URL}/api/auth/login`,
   google:     `${BACKEND_URL}/api/auth/google`,
   assignRole: `${BACKEND_URL}/api/auth/assign-role`,
+  // Dispatch
+  dispatchLive: `${BACKEND_URL}/api/dispatch/hospitals/live`,
+  dispatchRoute: `${BACKEND_URL}/api/dispatch/route`,
+  dispatchConfirm: `${BACKEND_URL}/api/dispatch/dispatch`,
 };
